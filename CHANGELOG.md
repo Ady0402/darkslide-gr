@@ -2,7 +2,7 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [0.1.0] - 未发布
+## [0.1.0] - 2026-10-11
 
 首个公开版本。作者已在一台 GR III（2.10）上实机刷入测试，未发现问题。
 
