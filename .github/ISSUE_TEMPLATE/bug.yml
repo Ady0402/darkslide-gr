@@ -1,0 +1,80 @@
+name: 问题反馈 / Bug report
+description: 报告 Darkslide GR 的问题 / Report a problem with Darkslide GR
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **请不要上传任何固件文件（.bin）**，原厂版和修改版都不要。提供 SHA-256 就够了。
+        **Please never attach firmware files (.bin)**, stock or modified. The SHA-256 is enough.
+
+  - type: input
+    id: version
+    attributes:
+      label: Darkslide 版本 / Darkslide version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: stage
+    attributes:
+      label: 问题出现在哪一步 / Where did it happen
+      options:
+        - 启动 / Starting the tool
+        - 导入固件 / Importing firmware
+        - 编辑图标或预设名 / Editing icons or preset names
+        - 生成 / Building
+        - 刷入后在相机上 / On the camera after flashing
+        - 其他 / Other
+    validations:
+      required: true
+
+  - type: input
+    id: input_sha
+    attributes:
+      label: 输入文件 SHA-256 / Input file SHA-256
+      description: "shasum -a 256 fwdc239b.bin"
+    validations:
+      required: true
+
+  - type: input
+    id: output_sha
+    attributes:
+      label: 生成文件 SHA-256（如有）/ Output file SHA-256 (if any)
+      description: 构建清单里有 / Shown in the build manifest
+
+  - type: input
+    id: env
+    attributes:
+      label: 系统与 Python 版本 / OS and Python version
+      placeholder: "macOS 15.1 · Python 3.12.4"
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 操作步骤 / Steps to reproduce
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: result
+    attributes:
+      label: 实际结果与报错 / What happened (error messages)
+      description: 可以贴终端输出或截图 / Paste terminal output or screenshots
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: 确认 / Confirm
+      options:
+        - label: 我没有上传任何固件文件 / I have not attached any firmware files
+          required: true

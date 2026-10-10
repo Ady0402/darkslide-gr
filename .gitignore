@@ -1,0 +1,27 @@
+# 固件与相机素材：任何情况下都不进仓库
+*.bin
+*.BIN
+*.rtos
+*.dng
+*.DNG
+*.zip
+*.elf
+*.o
+
+# 本机环境
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+*.log
+.env
+*.pem
+*.key
+
+# 图片：默认不进仓库（防止误带用户自己的图标设计），只放行 docs/images/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+!docs/images/*

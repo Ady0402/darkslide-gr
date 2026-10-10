@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Darkslide GR</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand mono">DARKSLIDE<span class="brand-sub">GR</span></div>
+  <div class="grow"></div>
+  <button id="cameraChip" class="chip" hidden>
+    <span class="cam-mini" aria-hidden="true"><span></span></span>
+    <span class="chip-text"><span id="chipModel">GR III</span><span class="mono dim" id="chipFw">FW 2.10 · OFFICIAL · OK</span></span>
+    <span class="dim small">更换</span>
+  </button>
+  <button id="btnSettings" class="icon-btn" aria-label="设置" title="设置">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>
+  </button>
+</header>
+
+<!-- 01 选择机型与固件 -->
+<section id="viewStart" class="view">
+  <div class="start">
+    <div class="mono dim small">STEP 1 / 2</div>
+    <h1>选择你的相机</h1>
+    <div class="models" id="models"></div>
+    <div class="import-row">
+      <label class="drop" id="drop">
+        <input type="file" id="fileInput" accept=".bin" hidden>
+        <span class="drop-icon" aria-hidden="true">↑</span>
+        <span class="drop-text">
+          <span>拖入官方固件 fwdc239b.bin，或点这里选择</span>
+          <span class="dim small">从理光官网下载 GR III 2.10。工具会核对它是不是官方原件，文件只留在你的电脑上。</span>
+        </span>
+      </label>
+      <div class="import-side">
+        <div id="importResult" class="import-result dim small">还没有导入固件</div>
+        <div id="projectPick" class="project-pick" hidden></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 02 工作台 -->
+<section id="viewWork" class="view" hidden>
+  <div class="work">
+    <aside class="features" aria-label="功能">
+      <button class="feature on">影像控制<span class="mono dim">14</span></button>
+      <button class="feature" disabled>关机画面<span class="mono">SOON</span></button>
+      <button class="feature" disabled>画幅<span class="mono">SOON</span></button>
+      <button class="feature" disabled>日期印记<span class="mono">SOON</span></button>
+      <div class="grow"></div>
+      <a class="side-link" href="#" id="rescueLink">救机说明</a>
+    </aside>
+
+    <main class="bench" aria-label="操作台">
+      <div class="draft-banner" id="templateBanner" hidden></div>
+      <div class="slots" id="slots" role="listbox" aria-label="预设"></div>
+      <div class="editor">
+        <div class="lcd-col">
+          <div class="camera-back">
+            <div class="cb-dial"></div>
+            <div class="cb-btns"><i></i><i></i><i></i></div>
+            <div class="lcd">
+              <div class="lcd-head"><span>影像控制</span><span class="mono" id="lcdCount">01/14</span></div>
+              <div class="lcd-rows"><div class="lcd-bar" id="lcdBar" aria-hidden="true"></div><div id="lcdRows"></div></div>
+            </div>
+          </div>
+          <div class="dim xsmall">机身菜单示意，实际显示以相机为准</div>
+        </div>
+        <div class="edit-col">
+          <div>
+            <div class="mono dim small" id="slotMeta"></div>
+            <h1 id="slotTitle"></h1>
+          </div>
+          <div class="icon-compare">
+            <div class="ic"><div class="icon-factory" id="iconFactory"></div><span class="dim xsmall">原厂</span></div>
+            <div class="ic-line"></div>
+            <div class="ic"><div class="icon-new" id="iconNew"><span>未修改</span></div><span class="dim xsmall">40×40 像素</span></div>
+          </div>
+          <div class="field" id="iconField">
+            <div class="label">图标</div>
+            <div class="row">
+              <button class="btn primary" id="btnUpload">上传图片</button>
+              <button class="btn" id="btnFactoryStyle">原厂风格</button>
+              <button class="btn ghost" id="btnIconReset">恢复原厂</button>
+              <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+            <div class="hint" id="iconHint">PNG / JPG / WebP，裁成 38×36 可见区，四周透明边按原厂规则保留</div>
+          </div>
+          <div class="field" id="nameField">
+            <label class="label" for="nameInput">预设名</label>
+            <div class="name-box" id="nameBox">
+              <input id="nameInput" autocomplete="off" spellcheck="false">
+              <span class="mono xsmall dim" id="nameCount"></span>
+            </div>
+            <ul class="checks" id="nameChecks"></ul>
+            <button class="btn ghost small-btn" id="btnNameReset">恢复原厂预设名</button>
+          </div>
+          <div class="base-row"><span class="dim">底子</span><span class="dim2">原样 · 第二版开放</span></div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="output" aria-label="生成">
+      <div class="out-block">
+        <div class="out-head"><span class="mono dim small" id="changeCount">CHANGES · 0</span><span class="dim2 xsmall" id="changeSlots"></span></div>
+        <div id="changeList" class="change-list"></div>
+      </div>
+      <div class="out-block bordered">
+        <div class="mono dim small">OUTPUT</div>
+        <div class="kv"><span class="dim">版本</span><span class="mono">2.10（不变）</span></div>
+        <div class="kv"><span class="dim">检查</span><span>生成时运行 7 项</span></div>
+        <div class="kv"><span class="dim">模板</span><span id="templateState"></span></div>
+      </div>
+      <div class="grow"></div>
+      <button class="link-btn" id="btnBuilds">生成记录 <span class="mono" id="buildCount">0</span> ›</button>
+      <div class="kv small"><input id="projectTitle" class="title-input" aria-label="工程名"><span class="dim" id="saveState"></span></div>
+      <div class="row">
+        <button class="btn grow1" id="btnSave">保存 ⌘S</button>
+        <button class="btn primary grow2" id="btnGenerate">生成</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- 03 生成 -->
+<section id="viewDone" class="view" hidden>
+  <div class="done">
+    <div class="mono dim small" id="doneTag">RESULT</div>
+    <h1 id="doneTitle"></h1>
+    <p class="dim" id="doneText"></p>
+    <dl class="table" id="doneTable"></dl>
+    <ul class="checks" id="doneChecks" aria-label="核对结果"></ul>
+    <div class="row" id="doneDownloads" hidden>
+      <a class="btn primary dl" id="dlFirmware" download="fwdc239b.bin">下载固件</a>
+      <a class="btn dl" id="dlManifest">下载构建清单</a>
+    </div>
+    <div class="row"><button class="btn ghost" id="btnBack">返回工作台</button></div>
+    <div class="dim small">刷机前先备好官方 2.10 救机卡。<a href="#" id="rescueLink2">救机说明</a></div>
+  </div>
+</section>
+
+<!-- 救机说明 -->
+<section id="viewRescue" class="view" hidden>
+  <div class="rescue">
+    <div class="mono dim small">RESCUE</div>
+    <h1>救机说明</h1>
+    <p class="dim">刷修改版之前请读完。出问题时，用<strong>官方 GR III 2.10 原件</strong>刷回去。修改版的版本号一直保持 2.10，所以官方原件不会被当成“更旧”而拒收。</p>
+
+    <h2>能救和不能救的情况</h2>
+    <dl class="table">
+      <dt>相机拒收修改版</dt><dd>不用救：机身没被改动，删掉卡上的文件即可</dd>
+      <dt>能开机，但显示或颜色不对</dt><dd>能救：刷官方 2.10</dd>
+      <dt>开机卡住，但还能进更新画面</dt><dd>大概率能救：按下面步骤开机进更新</dd>
+      <dt>完全开不了机 / 刷到一半断电</dt><dd class="bad-text">不能救：没有找到用户可用的强制恢复入口，只能送修</dd>
+    </dl>
+
+    <h2>准备救机卡（刷机前做好）</h2>
+    <ol class="steps">
+      <li>准备一张单独的 SD 卡，平时不拍照用。</li>
+      <li>在相机里格式化这张卡。</li>
+      <li>把官方 <span class="mono">fwdc239b.bin</span> 复制到卡的根目录，文件名不改，不放进文件夹。</li>
+      <li>把卡上的这个文件拖到下面，核对它是不是官方原件。</li>
+      <li>和充满电的备用电池放在一起。</li>
+    </ol>
+    <label class="drop small-drop" id="rescueDrop">
+      <input type="file" id="rescueInput" accept=".bin" hidden>
+      <span class="drop-text"><span>核对救机卡上的 fwdc239b.bin</span><span class="dim small">只做核对，不保存、不上传</span></span>
+    </label>
+    <div class="import-result small" id="rescueResult"></div>
+
+    <h2>刷机前</h2>
+    <ol class="steps">
+      <li>把影像控制、九项参数、U1–U3、按键设置拍照记下来，刷机后设置可能被重置。</li>
+      <li>电池充满，或接 AC 适配器。</li>
+      <li>有备用机的话，先在备用机上测。</li>
+    </ol>
+
+    <h2>救机步骤</h2>
+    <ol class="steps">
+      <li>插入救机卡，<strong>按住 MENU 键再开机</strong>，进入固件更新画面后按提示确认。</li>
+      <li>更新中不要关机、不要开电池仓、不要拔卡。最后阶段（约 80%–90%）断电最危险。</li>
+      <li>出现 Update failed：关机，再开机重试一次；还失败就停下，拍下屏幕信息。</li>
+    </ol>
+    <p class="dim small">以上来自对固件代码的离线分析，尚未在实机上逐项验证。</p>
+    <div class="row"><button class="btn" id="rescueBack">返回</button></div>
+  </div>
+</section>
+
+<!-- 设置 -->
+<dialog id="settingsDialog" class="dialog">
+  <div class="dialog-head"><span>设置</span><span class="dim small mono" id="appVersion"></span></div>
+  <div class="settings">
+    <div class="kv"><span>首次使用指引</span><button class="btn" id="btnGuideReset">重新显示</button></div>
+    <div class="kv"><span>救机说明</span><button class="btn" id="btnOpenRescue">打开</button></div>
+    <div class="kv"><span class="dim">数据位置</span><span class="mono xsmall dim" id="dataRoot"></span></div>
+    <div class="kv quit-row"><span>退出 Darkslide<br><span class="dim xsmall">改动已自动保存；退出后可以关闭这个浏览器页面</span></span><button class="btn" id="btnQuit">退出</button></div>
+  </div>
+  <div class="row end"><button class="btn ghost" id="settingsClose">关闭</button></div>
+</dialog>
+
+<!-- 生成记录 -->
+<dialog id="buildsDialog" class="dialog">
+  <div class="dialog-head"><span>生成记录</span><span class="dim small">只列出这个工程的</span></div>
+  <div id="buildList" class="build-list"></div>
+  <div class="row end"><button class="btn ghost" id="buildsClose">关闭</button></div>
+</dialog>
+
+<!-- 裁切 -->
+<dialog id="cropDialog" class="dialog">
+  <div class="dialog-head"><span>裁切图标</span><span class="dim small">拖动移动，滚轮或滑杆缩放</span></div>
+  <div class="crop-body">
+    <canvas id="cropCanvas" width="380" height="360" aria-label="裁切区域"></canvas>
+    <div class="crop-side">
+      <div class="dim xsmall">实际大小</div>
+      <canvas id="cropPreview1" width="40" height="40" class="px1"></canvas>
+      <div class="dim xsmall">放大 4×</div>
+      <canvas id="cropPreview4" width="160" height="160" class="px4"></canvas>
+    </div>
+  </div>
+  <label class="zoom-row"><span class="dim small">缩放</span><input type="range" id="cropZoom" min="1" max="8" step="0.01" value="1"></label>
+  <div class="row end">
+    <button class="btn ghost" id="cropCancel">取消</button>
+    <button class="btn primary" id="cropApply">使用</button>
+  </div>
+</dialog>
+
+<!-- 原厂风格 -->
+<dialog id="factoryDialog" class="dialog">
+  <div class="dialog-head"><span>原厂风格图标</span><span class="dim small">灰框白字，和相机自带图标一致</span></div>
+  <div class="crop-body">
+    <div class="factory-form">
+      <label class="label" for="factoryText">文字（1–5 个字符）</label>
+      <input id="factoryText" maxlength="5" class="text-input" spellcheck="false">
+      <div class="hint">英文字母、数字和常用符号</div>
+    </div>
+    <div class="crop-side">
+      <div class="dim xsmall">实际大小</div>
+      <canvas id="factoryPreview1" width="40" height="40" class="px1"></canvas>
+      <div class="dim xsmall">放大 4×</div>
+      <canvas id="factoryPreview4" width="160" height="160" class="px4"></canvas>
+    </div>
+  </div>
+  <div class="row end">
+    <button class="btn ghost" id="factoryCancel">取消</button>
+    <button class="btn primary" id="factoryApply">使用</button>
+  </div>
+</dialog>
+
+<!-- 刷机前清单 -->
+<dialog id="preflightDialog" class="dialog">
+  <div class="dialog-head"><span>第一次生成之前</span></div>
+  <ol class="preflight">
+    <li>把相机里的影像控制、九项参数、U1–U3 等设置拍照记下来。刷机后设置可能被重置。</li>
+    <li>准备一张只放官方 2.10 原件 fwdc239b.bin 的救机卡。</li>
+    <li>电池充满。刷机过程中不要关机、不要开电池仓、不要拔卡。</li>
+    <li>Darkslide 只生成文件，不会写卡、不会刷机。刷不刷由你决定。</li>
+  </ol>
+  <div class="row end">
+    <button class="btn ghost" id="preflightCancel">取消</button>
+    <button class="btn primary" id="preflightOk">我已了解，继续</button>
+  </div>
+</dialog>
+
+<section id="viewQuit" class="view" hidden>
+  <div class="done">
+    <div class="mono dim small">STOPPED</div>
+    <h1>Darkslide 已退出</h1>
+    <p class="dim">改动都已保存。现在可以关闭这个浏览器页面。下次使用时重新打开 Darkslide 即可。</p>
+  </div>
+</section>
+
+<div id="toast" class="toast" role="status" hidden></div>
+<script src="names.js"></script>
+<script src="camera.js"></script>
+<script src="guide.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
