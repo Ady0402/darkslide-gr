@@ -10,7 +10,7 @@ Give your GR III your own preset icons, preset names and shutdown screen, right 
 > **Flashing modified firmware is risky. Please read this first.**
 >
 > - Your camera may fail to boot, stop working properly, or be **permanently bricked**. You may also lose warranty and official support.
-> - The author has flashed and tested it on **one** GR III (firmware 2.10): icons and preset names, and the shutdown screen on its own, with no problems found. The shutdown screen combined with icons and/or preset names has not been tested on hardware yet. That is a sample of one camera, and your own icons, preset names and pictures have never been on real hardware; all pre-build checks run offline and are no substitute for testing on hardware.
+> - The author has flashed and tested it on **one** GR III (firmware 2.10): icons and preset names, the shutdown screen, and all three together, with no problems found. That is a sample of one camera, and your own icons, preset names and pictures have never been on real hardware; all pre-build checks run offline and are no substitute for testing on hardware.
 > - This project is not affiliated with or endorsed by RICOH. The author accepts no liability for any damage.
 > - What Darkslide produces is a firmware file, nothing more: it **does not talk to your camera or touch your memory card**. Flashing it, and how, is your call.
 >
@@ -48,9 +48,9 @@ Give the presets in your GR III menu **your own icons and names**. For example, 
 - **What it never touches**: colour rendering, image-quality parameters and all other settings stay as they are. The firmware version stays 2.10.
 - **Projects**: drafts are saved automatically; save multiple versions, undo and redo, and pick up where you left off.
 
-**Shutdown screen (experimental)**
+**Shutdown screen**
 
-Upload a picture; it is cropped to 3:2 and converted to a format the camera can read, and the camera shows it when you switch off (except the collaboration style). Only the existing shutdown-image slot in the firmware is replaced; nothing is enlarged. It can be built into the same file as icons and preset names and flashed in one go (this combination has not been tested on hardware yet).
+Upload a picture; it is cropped to 3:2 and converted to a format the camera can read, and the camera shows it when you switch off (except the collaboration style). Only the existing shutdown-image slot in the firmware is replaced; nothing is enlarged. It can be built into the same file as icons and preset names and flashed in one go (this combination has been tested on hardware too).
 
 ![Shutdown screen](docs/images/shutdown.png)
 

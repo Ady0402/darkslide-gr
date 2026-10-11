@@ -127,7 +127,7 @@ def run(store, project, template, official_bin):
         container=result["container"], builder=result["builder"], checks=checks,
         skipped=skipped,
         rescue=dict(rescue_gate.RESCUE_NOTE),
-        verification="离线核对通过。图标和预设名、关机画面各自已在 GR III 上实测；三类同时改动的组合尚未实测。刷机风险自负，刷机前请备好官方 2.10 救机卡。",
+        verification="离线核对通过。图标、预设名、关机画面单独改和一起改，都已在一台 GR III 上实测；你填的具体内容未经实测。刷机风险自负，刷机前请备好官方 2.10 救机卡。",
     )
     if jpeg is not None:
         manifest["feature"] = "shutdown" if features == ["shutdown"] else "composite"

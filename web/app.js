@@ -655,8 +655,8 @@ function showResult(ok, data) {
   const rows = ok
     ? [["工程", data.project_title], ["改动", data.summary.map((x) => x.preset + " " + x.what + " → " + x.value).join("；")],
        ["版本", "2.10（不变）"], ["SHA-256", data.output_sha256],
-       ["验证", data.feature === "composite" ? "离线核对通过 · 图标/预设名与关机画面一起改的组合尚未实测"
-               : data.feature === "shutdown" ? "离线核对通过 · 实验功能" : "离线核对通过"]]
+       ["验证", data.feature === "composite" ? "离线核对通过 · 同类组合已在一台 GR III 上实测"
+               : data.feature === "shutdown" ? "离线核对通过 · 已在一台 GR III 上实测" : "离线核对通过"]]
     : [["工程", state.project.title], ["模板", state.template.reviewed ? state.template.model + " " + state.template.firmware : "不可用"]];
   $("doneTable").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { class: k === "SHA-256" ? "mono sha" : "", text: v })]));
   $("doneChecks").replaceChildren(...(data.checks || []).map((c) => el("li", { class: c.ok ? "" : "bad" }, [
@@ -711,7 +711,7 @@ function renderShutdown() {
   $("sdNotes").replaceChildren(
     note("普通、ING、Urban、Diary 四种关机画面共用这一张图；合作款（Collabo）保持原厂。"),
     note("不扩容：图片写进固件里原有的 Diary 关机图位置，并把它从 B 盘改到 A 盘（刷机时只会更新 A 盘）；其他资源不动。"),
-    note("实验功能：单独改关机画面已在一台 GR III 上实测成功；和图标、预设名一起改的组合尚未实测。"),
+    note("已在一台 GR III 上实测成功：单独改关机画面，以及和图标、预设名一起改。"),
     note("可以和图标、预设名一起生成，一次刷机全部生效。"),
   );
 }
