@@ -20,6 +20,7 @@ const state = {
   revealAsset: null,
   enterSlots: false,
   draftState: "",
+  feature: "ic",
 };
 
 // ---------------------------------------------------------------- api
@@ -200,6 +201,7 @@ function setEdit(no, key, value) {
 
 function undo() {
   if (!state.undo.length) return;
+  onNameInput.depth = -1;
   state.redo.push(snapshot());
   state.changes = JSON.parse(state.undo.pop());
   scheduleDraft();
@@ -208,6 +210,7 @@ function undo() {
 
 function redo() {
   if (!state.redo.length) return;
+  onNameInput.depth = -1;
   state.undo.push(snapshot());
   state.changes = JSON.parse(state.redo.pop());
   scheduleDraft();
@@ -249,6 +252,8 @@ async function saveProject() {
 
 // ---------------------------------------------------------------- render
 function renderAll() {
+  renderFeature();
+  renderShutdown();
   renderBanner();
   renderSlots();
   renderEditor();
@@ -261,7 +266,7 @@ function renderBanner() {
   const t = state.template;
   $("templateBanner").hidden = !!t.reviewed;
   $("templateBanner").textContent = t.review_note || "";
-  $("templateState").textContent = t.reviewed ? t.id : "草稿 · 未复核";
+  $("templateState").textContent = t.reviewed ? t.model + " " + t.firmware : "不可用";
 }
 
 function slotIcon(slot, cls) {
@@ -363,6 +368,22 @@ function renderEditor() {
     items.push(el("li", { class: "info" }, [el("span", { class: "mk", text: "i" }), el("span", { text: "这个预设的预设名" + (s.rename === "closed" ? "暂不开放" : "稍后开放") + (s.note ? "：" + s.note : "") })]));
   }
   $("nameChecks").replaceChildren(...items);
+
+  const detail = state.status.detail || {};
+  const grainStage = (detail.grain || {})[String(s.no)] || "closed";
+  const grainOpen = grainStage === "menu";
+  const grainOn = edit.grain === true;
+  $("grainField").classList.toggle("locked", !grainOpen);
+  $("btnGrain").disabled = !grainOpen;
+  $("btnGrain").setAttribute("aria-pressed", grainOn ? "true" : "false");
+  $("btnGrain").classList.toggle("primary", grainOn);
+  $("btnGrain").textContent = grainOn ? "已开放颗粒项" : "开放颗粒项";
+  $("btnGrainReset").disabled = !grainOpen || !grainOn;
+  $("grainHint").textContent = grainStage === "factory"
+    ? "这个预设的相机菜单本来就有颗粒和色调"
+    : grainOpen
+      ? ((detail.grain_note || {})[String(s.no)] || "开放后在相机「详细设置」里出现颗粒项，档位在相机里调") + "。实验功能：写入核心待交付"
+      : "这个预设的固件里没有颗粒设置，暂不能开放；色调同样在调研中";
 }
 
 function renderChanges() {
@@ -377,6 +398,13 @@ function renderChanges() {
         el("button", { "aria-label": "撤销 " + s.name + " 图标改动", text: "×", onclick: (e) => leaveThen(e, () => setEdit(s.no, "icon", undefined)) }),
       ]));
     }
+    if (edit.grain === true) {
+      rows.push(el("div", { class: "change", "data-key": s.no + "g" }, [
+        el("span", { class: "thumb", text: "▦" }),
+        el("span", { class: "txt" }, [el("span", { text: s.name + " 颗粒项" }), el("span", { text: "→ 开放 · 档位在相机里调 · 实验" })]),
+        el("button", { "aria-label": "撤销 " + s.name + " 颗粒项改动", text: "×", onclick: (e) => leaveThen(e, () => setEdit(s.no, "grain", undefined)) }),
+      ]));
+    }
     if (edit.name !== undefined) {
       const ok = Names.ok(edit.name, s.factory_en.length);
       rows.push(el("div", { class: "change", "data-key": s.no + "n" }, [
@@ -386,13 +414,22 @@ function renderChanges() {
       ]));
     }
   }
+  const sd = state.changes.shutdown;
+  if (sd) {
+    rows.unshift(el("div", { class: "change", "data-key": "shutdown" }, [
+      el("span", { class: "thumb" }, el("img", { src: assetUrl(sd.asset), alt: "", style: "object-fit:cover;image-rendering:auto" })),
+      el("span", { class: "txt" }, [el("span", { text: "关机画面" }), el("span", { text: "→ 自定义图片 · " + (sd.bytes || 0).toLocaleString() + " 字节" })]),
+      el("button", { "aria-label": "撤销关机画面改动", text: "×", onclick: (e) => leaveThen(e, () => setShutdown(undefined)) }),
+    ]));
+  }
   const known = state.knownRows;
   for (const r of rows) if (known && !known.has(r.dataset.key)) r.classList.add("enter");
   state.knownRows = new Set(rows.map((r) => r.dataset.key));
   const n = rows.length;
   $("changeCount").textContent = "CHANGES · " + n;
-  $("changeSlots").textContent = n ? Object.keys(state.changes).length + " 个预设" : "";
-  $("changeList").replaceChildren(...(rows.length ? rows : [el("div", { class: "empty", text: "还没有改动。选一个预设，换图标或改预设名。" })]));
+  const np = presetKeys().length;
+  $("changeSlots").textContent = [np ? np + " 个预设" : "", sd ? "关机画面" : ""].filter(Boolean).join(" · ");
+  $("changeList").replaceChildren(...(rows.length ? rows : [el("div", { class: "empty", text: state.feature === "shutdown" ? "还没有改动。上传一张图片做关机画面。" : "还没有改动。选一个预设，换图标或改预设名。" })]));
 }
 
 function leaveThen(e, fn) {
@@ -415,11 +452,14 @@ function onNameInput() {
   const current = (state.changes[s.no] || {}).name;
   if (v === s.factory_en) { if (current !== undefined) setEdit(s.no, "name", undefined); else renderEditor(); return; }
   if (v === current) return;
-  // collapse consecutive keystrokes into one undo step
-  const last = state.undo[state.undo.length - 1];
-  const typing = onNameInput.lastSlot === s.no && Date.now() - (onNameInput.lastAt || 0) < 1200;
-  if (typing && last) {
+  // collapse consecutive keystrokes into one undo step, but only while the top
+  // undo entry is still the one this typing run created (any other edit, undo
+  // or redo in between starts a new step)
+  const typing = onNameInput.lastSlot === s.no && Date.now() - (onNameInput.lastAt || 0) < 1200 &&
+    onNameInput.depth === state.undo.length && state.undo.length > 0;
+  if (typing) {
     state.changes[s.no] = Object.assign({}, state.changes[s.no], { name: v });
+    state.redo = [];
     scheduleDraft();
     renderSlots(); renderEditor(); renderLcd(); renderChanges();
   } else {
@@ -427,6 +467,7 @@ function onNameInput() {
   }
   onNameInput.lastSlot = s.no;
   onNameInput.lastAt = Date.now();
+  onNameInput.depth = state.undo.length;
 }
 
 // ---------------------------------------------------------------- icons
@@ -613,8 +654,10 @@ function showResult(ok, data) {
   $("doneText").textContent = ok ? "全部核对通过。下面是这次生成的明细。" : data.error;
   const rows = ok
     ? [["工程", data.project_title], ["改动", data.summary.map((x) => x.preset + " " + x.what + " → " + x.value).join("；")],
-       ["版本", "2.10（不变）"], ["SHA-256", data.output_sha256], ["验证", "离线核对通过 · 未实机"]]
-    : [["工程", state.project.title], ["模板", state.template.reviewed ? state.template.id : "草稿 · 未复核"]];
+       ["版本", "2.10（不变）"], ["SHA-256", data.output_sha256],
+       ["验证", data.feature === "composite" ? "离线核对通过 · 图标/预设名与关机画面一起改的组合尚未实测"
+               : data.feature === "shutdown" ? "离线核对通过 · 实验功能" : "离线核对通过"]]
+    : [["工程", state.project.title], ["模板", state.template.reviewed ? state.template.model + " " + state.template.firmware : "不可用"]];
   $("doneTable").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { class: k === "SHA-256" ? "mono sha" : "", text: v })]));
   $("doneChecks").replaceChildren(...(data.checks || []).map((c) => el("li", { class: c.ok ? "" : "bad" }, [
     el("span", { class: "mk", text: c.ok ? "✓" : "✕" }), el("span", { text: c.title + (c.detail ? "（" + c.detail + "）" : "") })])));
@@ -627,8 +670,185 @@ function showResult(ok, data) {
   show("viewDone");
 }
 
+// ---------------------------------------------------------------- shutdown image
+const presetKeys = () => Object.keys(state.changes).filter((k) => k !== "shutdown");
+const SD = { w: 720, h: 480 };
+const sd = { img: null, scale: 1, base: 1, ox: 0, oy: 0, drag: null, result: null, timer: null, seq: 0 };
+
+function setShutdown(value) {
+  mutate((c) => { if (value === undefined) delete c.shutdown; else c.shutdown = value; });
+}
+
+function renderFeature() {
+  const isSd = state.feature === "shutdown";
+  $("featIC").classList.toggle("on", !isSd);
+  $("featShutdown").classList.toggle("on", isSd);
+  $("paneIC").hidden = isSd;
+  $("paneShutdown").hidden = !isSd;
+}
+
+function renderShutdown() {
+  if (state.feature !== "shutdown") return;
+  const budget = (state.status.shutdown || {}).budget || 112505;
+  $("sdBudget").textContent = budget.toLocaleString();
+  const fac = $("sdFactory");
+  const facUrl = state.project ? "/api/factory/" + state.project.input_sha256 + "/shutdown.jpg" : null;
+  if (facUrl && fac.dataset.src !== facUrl) {
+    fac.dataset.src = facUrl;
+    fac.replaceChildren(el("img", { src: facUrl, alt: "原厂关机画面" }));
+  }
+  const edit = state.changes.shutdown;
+  if (edit) {
+    const cur = $("sdNew").querySelector("img");
+    if (!cur || !cur.src.endsWith(edit.asset)) $("sdNew").replaceChildren(el("img", { src: assetUrl(edit.asset), alt: "新关机画面" }));
+    $("sdNewCap").textContent = "新关机图 · " + (edit.bytes || 0).toLocaleString() + " 字节 · 质量 " + (edit.quality || "?");
+  } else {
+    $("sdNew").replaceChildren(el("span", { class: "dim small", text: "未修改" }));
+    $("sdNewCap").textContent = "新关机图";
+  }
+  $("btnSdReset").disabled = !edit;
+  const note = (t) => el("li", { class: "info" }, [el("span", { class: "mk", text: "i" }), el("span", { text: t })]);
+  $("sdNotes").replaceChildren(
+    note("普通、ING、Urban、Diary 四种关机画面共用这一张图；合作款（Collabo）保持原厂。"),
+    note("不扩容：图片写进固件里原有的 Diary 关机图位置，并把它从 B 盘改到 A 盘（刷机时只会更新 A 盘）；其他资源不动。"),
+    note("实验功能：单独改关机画面已在一台 GR III 上实测成功；和图标、预设名一起改的组合尚未实测。"),
+    note("可以和图标、预设名一起生成，一次刷机全部生效。"),
+  );
+}
+
+function sdClamp() {
+  const c = $("sdCanvas");
+  const w = sd.img.naturalWidth * sd.scale, h = sd.img.naturalHeight * sd.scale;
+  sd.ox = Math.min(0, Math.max(c.width - w, sd.ox));
+  sd.oy = Math.min(0, Math.max(c.height - h, sd.oy));
+}
+
+function sdRect() {
+  const c = $("sdCanvas");
+  return { sx: -sd.ox / sd.scale, sy: -sd.oy / sd.scale, sw: c.width / sd.scale, sh: c.height / sd.scale };
+}
+
+function sdRender() {
+  const c = $("sdCanvas"), g = c.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, c.width, c.height);
+  g.imageSmoothingQuality = "high";
+  g.drawImage(sd.img, sd.ox, sd.oy, sd.img.naturalWidth * sd.scale, sd.img.naturalHeight * sd.scale);
+  clearTimeout(sd.timer);
+  $("sdStat").textContent = "正在压缩…";
+  $("sdApply").disabled = true;
+  sd.timer = setTimeout(sdEncode, 250);
+}
+
+function sdPixels() {
+  // stepped downscale to 720×480 for a cleaner result
+  const r = sdRect();
+  let src = sd.img, sw = r.sw, sh = r.sh, sx = r.sx, sy = r.sy;
+  while (sw > SD.w * 2) {
+    const mid = document.createElement("canvas");
+    mid.width = Math.round(sw / 2); mid.height = Math.round(sh / 2);
+    const m = mid.getContext("2d");
+    m.imageSmoothingQuality = "high";
+    m.drawImage(src, sx, sy, sw, sh, 0, 0, mid.width, mid.height);
+    src = mid; sx = 0; sy = 0; sw = mid.width; sh = mid.height;
+  }
+  const out = document.createElement("canvas");
+  out.width = SD.w; out.height = SD.h;
+  const g = out.getContext("2d");
+  g.fillStyle = "#000"; g.fillRect(0, 0, SD.w, SD.h);   // transparent PNGs become black, like the camera screen
+  g.imageSmoothingQuality = "high";
+  g.drawImage(src, sx, sy, sw, sh, 0, 0, SD.w, SD.h);
+  return { canvas: out, data: g.getImageData(0, 0, SD.w, SD.h).data };
+}
+
+async function sdEncode() {
+  const seq = ++sd.seq;
+  const budget = (state.status.shutdown || {}).budget || 112505;
+  const px = sdPixels();
+  const fit = window.DarkslideJpeg.fit(px.data, SD.w, SD.h, budget, 95);
+  if (seq !== sd.seq) return;
+  if (!fit) { sd.result = null; $("sdStat").textContent = "这张图压不进 " + budget.toLocaleString() + " 字节"; return; }
+  const blob = new Blob([fit.data], { type: "image/jpeg" });
+  let bmp;
+  try { bmp = await createImageBitmap(blob); } catch (e) { sd.result = null; $("sdStat").textContent = "压缩结果无法解码，不能使用"; return; }
+  if (seq !== sd.seq) return;
+  if (bmp.width !== SD.w || bmp.height !== SD.h) { sd.result = null; $("sdStat").textContent = "压缩结果尺寸不对，不能使用"; return; }
+  const pv = $("sdPreview"), g = pv.getContext("2d");
+  g.imageSmoothingQuality = "high";
+  g.drawImage(bmp, 0, 0, pv.width, pv.height);
+  sd.result = { blob, quality: fit.quality, bytes: fit.data.length, source: px.canvas };
+  const word = fit.quality >= 80 ? "画质很好" : fit.quality >= 50 ? "画质良好" : fit.quality >= 25 ? "画质一般，细节会变软" : "画质较差，建议换一张细节少的图";
+  $("sdStat").textContent = fit.data.length.toLocaleString() + " / " + budget.toLocaleString() + " 字节 · 质量 " + fit.quality + " · " + word;
+  $("sdApply").disabled = false;
+}
+
+async function startShutdownCrop(file) {
+  try { sd.img = await loadImage(file); } catch (e) { toast(e.message, true); return; }
+  const c = $("sdCanvas");
+  sd.base = Math.max(c.width / sd.img.naturalWidth, c.height / sd.img.naturalHeight);
+  sd.scale = sd.base;
+  $("sdZoom").value = "1";
+  sd.ox = (c.width - sd.img.naturalWidth * sd.scale) / 2;
+  sd.oy = (c.height - sd.img.naturalHeight * sd.scale) / 2;
+  sd.result = null;
+  $("sdDialog").showModal();
+  sdRender();
+}
+
+function sdZoomTo(z, cx, cy) {
+  const c = $("sdCanvas");
+  cx = cx === undefined ? c.width / 2 : cx;
+  cy = cy === undefined ? c.height / 2 : cy;
+  const next = sd.base * Math.min(8, Math.max(1, z));
+  sd.ox = cx - (cx - sd.ox) * (next / sd.scale);
+  sd.oy = cy - (cy - sd.oy) * (next / sd.scale);
+  sd.scale = next;
+  $("sdZoom").value = String(next / sd.base);
+  sdClamp();
+  sdRender();
+}
+
+async function applyShutdown() {
+  if (!sd.result) return;
+  const btn = $("sdApply");
+  btn.disabled = true;
+  try {
+    const jpeg = await api("POST", "/api/projects/" + state.project.id + "/assets?kind=shutdown", sd.result.blob);
+    const source = await uploadPng(sd.result.source, "source");
+    setShutdown({ asset: jpeg.asset, source: source.asset, quality: sd.result.quality, bytes: jpeg.bytes });
+    $("sdDialog").close();
+  } catch (e) { toast(e.message, true); }
+  btn.disabled = false;
+}
+
+function wireShutdown() {
+  $("featIC").addEventListener("click", () => { state.feature = "ic"; renderAll(); });
+  $("featShutdown").addEventListener("click", () => { state.feature = "shutdown"; renderAll(); });
+  $("btnSdUpload").addEventListener("click", () => $("sdInput").click());
+  $("sdInput").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) startShutdownCrop(f); });
+  $("btnSdReset").addEventListener("click", () => setShutdown(undefined));
+  const c = $("sdCanvas");
+  c.addEventListener("pointerdown", (e) => { sd.drag = { x: e.clientX, y: e.clientY, ox: sd.ox, oy: sd.oy }; c.setPointerCapture(e.pointerId); });
+  c.addEventListener("pointermove", (e) => {
+    if (!sd.drag) return;
+    const k = c.width / c.getBoundingClientRect().width;
+    sd.ox = sd.drag.ox + (e.clientX - sd.drag.x) * k;
+    sd.oy = sd.drag.oy + (e.clientY - sd.drag.y) * k;
+    sdClamp(); sdRender();
+  });
+  c.addEventListener("pointerup", () => { sd.drag = null; });
+  c.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = c.getBoundingClientRect(), k = c.width / rect.width;
+    sdZoomTo((sd.scale / sd.base) * (e.deltaY < 0 ? 1.08 : 1 / 1.08), (e.clientX - rect.left) * k, (e.clientY - rect.top) * k);
+  }, { passive: false });
+  $("sdZoom").addEventListener("input", (e) => sdZoomTo(parseFloat(e.target.value)));
+  $("sdCancel").addEventListener("click", () => { sd.seq++; $("sdDialog").close(); });
+  $("sdApply").addEventListener("click", applyShutdown);
+}
+
 // ---------------------------------------------------------------- wire up
 function wire() {
+  wireShutdown();
   const drop = $("drop");
   $("fileInput").addEventListener("change", (e) => e.target.files[0] && importFile(e.target.files[0]));
   drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
@@ -641,6 +861,11 @@ function wire() {
   $("cameraChip").addEventListener("click", () => { show("viewStart"); });
   $("nameInput").addEventListener("input", onNameInput);
   $("btnNameReset").addEventListener("click", () => setEdit(state.sel, "name", undefined));
+  $("btnGrain").addEventListener("click", () => {
+    const on = (state.changes[state.sel] || {}).grain === true;
+    setEdit(state.sel, "grain", on ? undefined : true);
+  });
+  $("btnGrainReset").addEventListener("click", () => setEdit(state.sel, "grain", undefined));
   $("btnUpload").addEventListener("click", () => $("imageInput").click());
   $("imageInput").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) startCrop(f); });
   $("btnIconReset").addEventListener("click", () => setEdit(state.sel, "icon", undefined));
@@ -753,12 +978,12 @@ async function checkRescue(file) {
     const buf = await file.arrayBuffer();
     const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", buf))).map((b) => b.toString(16).padStart(2, "0")).join("");
     const official = state.template.official_inputs[0];
-    if (digest === official.sha256 && file.name === official.filename) {
+    if (digest === official.sha256 && file.name.toLowerCase() === official.filename.toLowerCase()) {
       out.className = "import-result small ok";
       out.textContent = "✓ 是官方 GR III 2.10 原件，可以做救机卡。SHA " + digest.slice(0, 8) + "…" + digest.slice(-8);
     } else if (digest === official.sha256) {
       out.className = "import-result small bad";
-      out.textContent = "✕ 内容是官方原件，但文件名必须是 fwdc239b.bin，相机才认得";
+      out.textContent = "✕ 内容是官方原件，但文件名要改成 fwdc239b.bin（大小写不限）：相机按这个名字在卡的根目录找更新文件";
     } else {
       out.className = "import-result small bad";
       out.textContent = "✕ 不是官方 GR III 2.10 原件，不能当救机卡用";

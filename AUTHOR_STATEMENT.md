@@ -1,7 +1,5 @@
 # 作者声明
 
-> v0.2（2026-10-10）· 署名、许可证、用途已由作者确定
-
 Copyright (C) 2026 LiorMoment
 
 Darkslide 中由作者编写的程序代码、界面与文档，采用 **GNU General Public License version 2 only（GPL-2.0-only）**，全文见 [LICENSE](LICENSE)。你可以按 GPL 的条件使用、修改和再分发这些内容。本软件按现状提供，不作任何保证。任何表述与 LICENSE 冲突时，以 LICENSE 为准。

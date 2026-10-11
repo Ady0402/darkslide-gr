@@ -1,27 +1,40 @@
-# 固件与相机素材：任何情况下都不进仓库
+# Darkslide 仓库只放程序与文档。用户自己的东西一律不进仓库：
+
+# 固件、压缩包与相机原片（工具运行时读取用户自备的文件）
 *.bin
 *.BIN
-*.rtos
+*.zip
+*.ZIP
 *.dng
 *.DNG
-*.zip
+# 从固件拆出的映像与编译产物
+*.rtos
+*.RTOS
 *.elf
 *.o
 
-# 本机环境
-.venv/
+# 用户的图片：默认排除，防止误带自己设计的图标或照片；只放行 README 截图与测试用的合成图
+*.png
+*.PNG
+*.jpg
+*.JPG
+*.jpeg
+*.JPEG
+*.webp
+*.WEBP
+*.gif
+*.GIF
+!docs/images/*.png
+!tests/fixtures/*.jpg
+
+# 本机运行产生的文件
 __pycache__/
 *.py[cod]
-.DS_Store
 *.log
-.env
-*.pem
-*.key
+.venv/
+.DS_Store
 
-# 图片：默认不进仓库（防止误带用户自己的图标设计），只放行 docs/images/
-*.png
-*.jpg
-*.jpeg
-*.webp
-*.gif
-!docs/images/*
+# 密钥与本机配置
+.env
+*.key
+*.pem

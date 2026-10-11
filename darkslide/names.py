@@ -1,6 +1,6 @@
 """Preset-name rules derived from the GR III 2.10 string tables.
 
-See docs/预设名规范_GRIII_2.10.md. The same rules run in web/app.js for live
+The same rules run in web/names.js for live
 feedback; this module is the authority the server applies before saving.
 """
 import re

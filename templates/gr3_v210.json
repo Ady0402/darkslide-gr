@@ -33,7 +33,7 @@
       "factory_en": "Standard",
       "icon": "test",
       "rename": "closed",
-      "note": "字符串 4 位于通用区，可能被其他菜单共用"
+      "note": "这个名称在相机其他菜单里也会用到，暂不开放改名"
     },
     {
       "no": 2,

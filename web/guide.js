@@ -1,5 +1,5 @@
 "use strict";
-// First-use guide overlay and the "import passed" arrow (docs/首次使用指引_v01.md).
+// First-use guide overlay and the "import passed" arrow.
 // Positions are measured from the real controls, never hard-coded.
 
 window.DarkslideGuide = (function () {

@@ -49,6 +49,34 @@ def _expected_icon(factory, pixels):
     return bytes(out)
 
 
+# Image-control detail-menu descriptor table (RTOS, GR III 2.10). Row 6 is the
+# built-in Negative Film list: nine items (flag 2 + parameter id), then two
+# padding bytes before the next string "OnStart". Opening the grain item means
+# count 9 -> 10 and padding -> 02 0F (flag 2, Particle id 15). Read-only facts
+# re-checked against the official file with fwread.
+GRAIN_MENU = dict(table=0x53B3488C, row=6, list_va=0x53B3500C,
+                  nine=bytes.fromhex("0200020102020203020402050206020d000e"),
+                  tail_factory=b"\x00\x00OnStart\x00", tail_opened=b"\x02\x0fOnStart\x00")
+
+
+def grain_menu_state(payload):
+    """Return 'factory', 'opened' or a description of anything else."""
+    g = GRAIN_MENU
+    row = g["table"] + g["row"] * 8
+    list_va, count = payload.u32(row), payload.u32(row + 4)
+    if list_va != g["list_va"]:
+        return "负片菜单列表指针不是原厂值"
+    o = payload.off(list_va)
+    if payload.p[o:o + 18] != g["nine"]:
+        return "负片原九项被改动"
+    tail = payload.p[o + 18:o + 28]
+    if count == 9 and tail == g["tail_factory"]:
+        return "factory"
+    if count == 10 and tail == g["tail_opened"]:
+        return "opened"
+    return "负片菜单项数 %d 与尾部字节 %s 不是预期组合" % (count, tail[:2].hex())
+
+
 def verify(official_bin, result, edits, template):
     """Return a list of {id, title, ok, detail}; all must be ok."""
     out = result["output"]
@@ -59,7 +87,7 @@ def verify(official_bin, result, edits, template):
 
     add("input", "输入是官方 GR III 2.10 原件",
         hashlib.sha256(official_bin).hexdigest() == fwread.V210_INPUT_SHA256)
-    add("sha", "输出 SHA 与生成核心报告一致",
+    add("sha", "输出文件 SHA-256 与生成结果一致",
         hashlib.sha256(out).hexdigest() == result["output_sha256"])
     add("header", "文件头 128 字节与原件相同（版本保持 2.10）", out[:128] == official_bin[:128])
     add("file_sum", "整文件 32 位加和为 0", _sum32(out) == 0)
@@ -106,6 +134,14 @@ def verify(official_bin, result, edits, template):
                 notes.append("%s %s 预设名不一致" % (slot["name"], lang))
     add("icons", "读回图标：改动的与设定一致，其余与原厂一致", icon_ok, "；".join(n for n in notes if "图标" in n))
     add("names", "读回预设名：英文和简中为新名，其他语言保持原厂", name_ok, "；".join(n for n in notes if "预设名" in n))
+    grain_edits = [e for e in edits if e["kind"] == "grain_menu"]
+    want = "opened" if grain_edits else "factory"
+    try:
+        got = grain_menu_state(p1)
+        add("grain_menu", "读回负片详细设置菜单：" + ("已加颗粒项，原九项与下一字符串不变" if grain_edits else "与原厂一致"),
+            got == want and grain_menu_state(p0) == "factory", "" if got == want else got)
+    except fwread.FirmwareReadError as exc:
+        add("grain_menu", "读回负片详细设置菜单", False, str(exc))
     return checks
 
 

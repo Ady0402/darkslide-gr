@@ -5,7 +5,7 @@ Layout under the data root:
   projects/<id>/project.json      saved state (⌘S) and version list
   projects/<id>/draft.json        autosaved working copy
   projects/<id>/versions/<n>.json one file per ⌘S
-  projects/<id>/assets/<sha256>.png
+  projects/<id>/assets/<sha256>.png|.jpg
   builds.json, prefs.json
 """
 import json
@@ -17,13 +17,16 @@ import tempfile
 import time
 from pathlib import Path
 
-from . import names, pngcheck, template as tpl
-from .identify import sha256
+from . import jpegcheck, names, pngcheck, shared_shutdown, template as tpl
+from .identify import digest_of
 
 PROJECT_ID = re.compile(r"^p_[0-9a-f]{12}$")
 ASSET_ID = re.compile(r"^[0-9a-f]{64}$")
 PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 MAX_SOURCE_BYTES = 20 * 1024 * 1024
+# Shutdown JPEG budget: the shared Diary slot (112,509 B) minus the 4-byte
+# minimum COM padding, so any accepted file can be padded to the exact slot size.
+SHUTDOWN_BUDGET = shared_shutdown.CAPACITY - 4
 
 
 class StoreError(ValueError):
@@ -32,6 +35,26 @@ class StoreError(ValueError):
 
 def now():
     return time.strftime("%Y-%m-%dT%H:%M:%S%z")
+
+
+def _keep_blob(target, data):
+    """Store `data` at its content-addressed `target` once. An existing file with that
+    name already holds the same bytes, so it is left alone; a new one is written under
+    a temporary name and renamed into place, so a crash never leaves half a file."""
+    if target.exists():
+        return
+    folder = target.parent
+    folder.mkdir(parents=True, exist_ok=True)
+    handle, scratch = tempfile.mkstemp(dir=str(folder), prefix=".incoming-", suffix=".part")
+    try:
+        with os.fdopen(handle, "wb") as out:
+            out.write(data)
+        os.replace(scratch, str(target))
+    except OSError:
+        if os.path.exists(scratch):
+            os.remove(scratch)
+        if not target.exists():  # a concurrent writer of the same content may have won the rename
+            raise
 
 
 def write_json(path, value):
@@ -62,13 +85,8 @@ class Store:
 
     # inputs -------------------------------------------------------------
     def put_input(self, data):
-        digest = sha256(data)
-        path = self.root / "inputs" / (digest + ".bin")
-        if not path.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            tmp = path.with_suffix(".part")
-            tmp.write_bytes(data)
-            os.replace(str(tmp), str(path))
+        digest = digest_of(data)
+        _keep_blob(self.root / "inputs" / (digest + ".bin"), data)
         return digest
 
     def input_path(self, digest):
@@ -159,20 +177,33 @@ class Store:
                 pngcheck.check_icon(data)
             except pngcheck.PngError as exc:
                 raise StoreError(str(exc))
-        digest = sha256(data)
-        target = path / "assets" / (digest + ".png")
-        if not target.exists():
-            target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
+        digest = digest_of(data)
+        _keep_blob(path / "assets" / (digest + ".png"), data)
         return dict(asset=digest, width=width, height=height)
+
+    def put_shutdown_jpeg(self, project_id, data):
+        """Accept only a 720x480 baseline 4:2:0 JPEG that fits the shared slot."""
+        path = self._dir(project_id)
+        if len(data) > SHUTDOWN_BUDGET:
+            raise StoreError("关机图超过 %d 字节，请降低质量" % SHUTDOWN_BUDGET)
+        try:
+            shared_shutdown.jpeg_contract(bytes(data))
+            jpegcheck.check(bytes(data))           # every Huffman code, all 1350 blocks, ends at EOI
+        except (shared_shutdown.SharedSlotError, jpegcheck.JpegCheckError) as exc:
+            raise StoreError("关机图格式不符合相机要求：%s" % exc)
+        digest = digest_of(data)
+        _keep_blob(path / "assets" / (digest + ".jpg"), data)
+        return dict(asset=digest, width=720, height=480, bytes=len(data))
 
     def asset_path(self, project_id, asset):
         if not ASSET_ID.match(asset or ""):
             raise StoreError("图片编号无效")
-        path = self._dir(project_id) / "assets" / (asset + ".png")
-        if not path.exists():
-            raise StoreError("找不到图片")
-        return path
+        folder = self._dir(project_id) / "assets"
+        for ext in (".png", ".jpg"):
+            path = folder / (asset + ext)
+            if path.exists():
+                return path
+        raise StoreError("找不到图片")
 
     # validation ---------------------------------------------------------
     def validate_changes(self, project_id, changes, template, strict):
@@ -183,6 +214,9 @@ class Store:
             raise StoreError("改动格式错误")
         clean = {}
         for key, edit in changes.items():
+            if key == "shutdown":
+                clean["shutdown"] = self._clean_shutdown(project_id, edit)
+                continue
             try:
                 no = int(key)
                 slot = tpl.slot(template, no)
@@ -211,9 +245,26 @@ class Store:
                     self.asset_path(project_id, icon["source"])
                 keep = ("asset", "source", "style", "crop", "text")
                 out["icon"] = {k: icon[k] for k in keep if k in icon}
+            if "grain" in edit:
+                if tpl.grain_stage(template, no) != "menu":
+                    raise StoreError("%s 的颗粒项不能由本工具开放" % slot["name"])
+                if edit["grain"] is not True:
+                    raise StoreError("%s 的颗粒项改动格式错误" % slot["name"])
+                out["grain"] = True
             if out:
                 clean[str(no)] = out
         return clean
+
+    def _clean_shutdown(self, project_id, edit):
+        if not isinstance(edit, dict):
+            raise StoreError("关机图改动格式错误")
+        jpeg = self.asset_path(project_id, edit.get("asset"))
+        if jpeg.suffix != ".jpg":
+            raise StoreError("关机图必须是已压缩的 JPEG")
+        if edit.get("source"):
+            self.asset_path(project_id, edit["source"])
+        keep = ("asset", "source", "quality", "bytes")
+        return {k: edit[k] for k in keep if k in edit}
 
     # builds and prefs ----------------------------------------------------
     def builds(self):

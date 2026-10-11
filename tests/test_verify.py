@@ -33,7 +33,8 @@ class Verify(unittest.TestCase):
     def test_all_checks_pass(self):
         checks = verify.verify(self.raw, self.result, self.edits, self.template)
         self.assertTrue(verify.all_ok(checks), [c for c in checks if not c["ok"]])
-        self.assertEqual(len(checks), 9)
+        self.assertEqual(len(checks), 10)   # 9 icon/name checks + negative-film menu read-back
+        self.assertIn("grain_menu", {c["id"] for c in checks})
 
     def test_flipped_output_byte_fails(self):
         bad = dict(self.result, output=self.result["output"][:-8] + b"\x00" + self.result["output"][-7:])

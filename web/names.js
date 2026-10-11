@@ -1,4 +1,4 @@
-// Preset-name rules; mirrors darkslide/names.py (docs/预设名规范_GRIII_2.10.md).
+// Preset-name rules; mirrors darkslide/names.py.
 window.DarkslideNames = {
   check(name, limit) {
     const unsupported = Array.from(new Set(Array.from(name).filter((ch) => ch < "\x20" || ch > "\x7e"))).sort();

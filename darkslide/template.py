@@ -8,6 +8,9 @@ from .paths import TEMPLATE_ROOT
 
 STAGES = ("closed", "later", "test", "open")
 EDITABLE = ("test", "open")
+# grain: "factory" = the camera menu already has it, "menu" = this tool can
+# open the hidden item, "closed" = not possible with the current research.
+GRAIN_STAGES = ("closed", "factory", "menu")
 
 
 class TemplateError(ValueError):
@@ -47,3 +50,37 @@ def slot(template, no):
 
 def can_edit(template, no, what):
     return slot(template, no)[what] in EDITABLE
+
+
+def load_detail(template, name=None):
+    """Detail-menu stages live in a sidecar file (<template>.detail.json) so the
+    main template keeps exactly the fields the pinned generation core accepts."""
+    name = name or template["id"]
+    path = TEMPLATE_ROOT / (name if name.endswith(".json") else "gr3_v210.detail.json")
+    if not path.exists():
+        return dict(schema=1, template_id=template["id"], grain={}, grain_note={})
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if value.get("schema") != 1 or value.get("template_id") != template["id"]:
+        raise TemplateError("detail sidecar does not match template")
+    grain = value.get("grain") or {}
+    for key, stage in grain.items():
+        if stage not in GRAIN_STAGES or not any(s["no"] == int(key) for s in template["slots"]):
+            raise TemplateError("detail sidecar: bad grain entry %s" % key)
+    value.setdefault("grain_note", {})
+    params = value.setdefault("factory_params", {})
+    for key, entry in (params.get("slots") or {}).items():
+        items = entry.get("items") if isinstance(entry, dict) else None
+        if not any(s["no"] == int(key) for s in template["slots"]) or not isinstance(items, list) or not items:
+            raise TemplateError("detail sidecar: bad factory_params entry %s" % key)
+        for item in items:
+            ok = isinstance(item, list) and len(item) == 2 and isinstance(item[0], str) and (
+                item[1] is None or isinstance(item[1], str)
+                or (type(item[1]) is int and -4 <= item[1] <= 4))
+            if not ok:
+                raise TemplateError("detail sidecar: bad factory_params item in %s" % key)
+    return value
+
+
+def grain_stage(template, no):
+    slot(template, no)
+    return load_detail(template)["grain"].get(str(no), "closed")

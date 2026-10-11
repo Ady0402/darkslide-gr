@@ -10,10 +10,9 @@ import zlib
 from pathlib import Path
 
 from darkslide import names, template as tpl
-from darkslide.identify import identify, sha256
-from darkslide.server import App, make_handler
+from darkslide.identify import digest_of as sha256, identify
+from darkslide.server import App, LocalServer
 from darkslide.store import Store, StoreError
-from http.server import ThreadingHTTPServer
 
 
 def png(width, height, alpha=None):
@@ -160,7 +159,7 @@ class Http(unittest.TestCase):
         cls.app = App(cls.tmp.name)
         cls.app.template = test_template()
         cls.app.extract_factory = lambda digest, data: None
-        cls.httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(cls.app))
+        cls.httpd = LocalServer(("127.0.0.1", 0), cls.app)
         cls.port = cls.httpd.server_address[1]
         threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
 
@@ -197,11 +196,11 @@ class Http(unittest.TestCase):
         status, body = self.req("POST", "/api/projects/%s/generate" % pid)
         # the fake input is not the official file, so the builder refuses and nothing is stored
         self.assertEqual(status, 422)
-        self.assertIn("生成核心拒绝", json.loads(body)["error"])
+        self.assertIn("无法生成", json.loads(body)["error"])
         self.assertEqual(self.app.store.builds(), [])
 
     def test_check_name(self):
-        status, body = self.req("POST", "/api/check-name", {"slot": 11, "name": "Gold 200"})
+        status, body = self.req("POST", "/api/check-name", {"slot": 11, "name": "Day 200"})
         value = json.loads(body)
         self.assertEqual((value["ok"], value["limit"]), (True, 16))
 
@@ -224,7 +223,7 @@ class Quit(unittest.TestCase):
     def test_quit_stops_server(self):
         tmp = tempfile.TemporaryDirectory()
         app = App(tmp.name)
-        httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
+        httpd = LocalServer(("127.0.0.1", 0), app)
         port = httpd.server_address[1]
         t = threading.Thread(target=httpd.serve_forever, daemon=True)
         t.start()
@@ -239,7 +238,7 @@ class Quit(unittest.TestCase):
     def test_quit_refuses_foreign_origin(self):
         tmp = tempfile.TemporaryDirectory()
         app = App(tmp.name)
-        httpd = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(app))
+        httpd = LocalServer(("127.0.0.1", 0), app)
         port = httpd.server_address[1]
         t = threading.Thread(target=httpd.serve_forever, daemon=True)
         t.start()

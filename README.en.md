@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | English
 
-Give your GR III your own preset icons and preset names, right from a browser on your own computer.
+Give your GR III your own preset icons, preset names and shutdown screen, right from a browser on your own computer.
 
 ![Darkslide GR editor](docs/images/editor.png)
 
@@ -10,9 +10,9 @@ Give your GR III your own preset icons and preset names, right from a browser on
 > **Flashing modified firmware is risky. Please read this first.**
 >
 > - Your camera may fail to boot, stop working properly, or be **permanently bricked**. You may also lose warranty and official support.
-> - The author has flashed and tested it on **one** GR III (firmware 2.10) with no problems found. That is a sample of one camera, and your own icons and preset names have never been on real hardware; all pre-build checks run offline and are no substitute for testing on hardware.
+> - The author has flashed and tested it on **one** GR III (firmware 2.10): icons and preset names, and the shutdown screen on its own, with no problems found. The shutdown screen combined with icons and/or preset names has not been tested on hardware yet. That is a sample of one camera, and your own icons, preset names and pictures have never been on real hardware; all pre-build checks run offline and are no substitute for testing on hardware.
 > - This project is not affiliated with or endorsed by RICOH. The author accepts no liability for any damage.
-> - The tool only creates a file. It **never connects to your camera and never flashes anything**. Whether and how you flash is entirely your decision.
+> - What Darkslide produces is a firmware file, nothing more: it **does not talk to your camera or touch your memory card**. Flashing it, and how, is your call.
 >
 > If it breaks, you get to keep both pieces. If you can't live with a very stylish brick, don't flash it.
 
@@ -48,10 +48,17 @@ Give the presets in your GR III menu **your own icons and names**. For example, 
 - **What it never touches**: colour rendering, image-quality parameters and all other settings stay as they are. The firmware version stays 2.10.
 - **Projects**: drafts are saved automatically; save multiple versions, undo and redo, and pick up where you left off.
 
+**Shutdown screen (experimental)**
+
+Upload a picture; it is cropped to 3:2 and converted to a format the camera can read, and the camera shows it when you switch off (except the collaboration style). Only the existing shutdown-image slot in the firmware is replaced; nothing is enlarged. It can be built into the same file as icons and preset names and flashed in one go (this combination has not been tested on hardware yet).
+
+![Shutdown screen](docs/images/shutdown.png)
+
 ## How it keeps you safe
 
 - Only the official GR III 2.10 original is accepted; anything else is rejected.
 - Every build starts again from the original, then a separate, independent unpacker takes the result apart and checks it. **Download is offered only if every check passes**, together with a build manifest listing what changed.
+- One more check that does not depend on what you changed: the version is still 2.10, and the boot records and the firmware-update regions identified by the author's analysis are byte-for-byte untouched. This is meant to keep the official original usable for flashing back; it is an offline check, not a guarantee, the recovery path has not been verified step by step on hardware, and a camera that cannot power on at all is not covered.
 - A built-in recovery guide shows you how to prepare a recovery card before flashing and how to flash back to official firmware if something goes wrong.
 
 The interface is currently in Chinese.
@@ -72,7 +79,7 @@ sh start.sh
 
 Windows: double-click `start.cmd` (not yet tested on Windows).
 
-It opens `http://127.0.0.1:8787`; if the port is taken it tries the next one, so check the terminal. Everything runs locally and nothing is uploaded. Data lives on your computer: `~/Library/Application Support/Darkslide` on macOS, `%APPDATA%\Darkslide` on Windows, `~/.local/share/Darkslide` on Linux; set `DARKSLIDE_DATA` to change it.
+The terminal prints the address it is using and your browser opens it (usually `http://127.0.0.1:8787`; if another program holds that port, Darkslide moves on to the next free one). Everything runs locally and nothing is uploaded. Data lives on your computer: `~/Library/Application Support/Darkslide` on macOS, `%APPDATA%\Darkslide` on Windows, `~/.local/share/Darkslide` on Linux; set `DARKSLIDE_DATA` to change it.
 
 Run the tests: `python3 -m unittest discover -s tests`
 (To include the real-firmware tests, set `DARKSLIDE_OFFICIAL_BIN` to the path of your `fwdc239b.bin`; otherwise they are skipped.)

@@ -30,62 +30,86 @@ def need(ok, message):
         raise FirmwareReadError(message)
 
 
-def unpack(raw):
-    """Decode the frame stream starting at 0x80. Returns the payload bytes."""
-    cursor, out, n = 0x80, bytearray(), len(raw)
-    while True:
-        need(cursor + 2 <= n, "frame header beyond end of file")
-        prefix = (raw[cursor] << 8) | raw[cursor + 1]
-        cursor += 2
-        if prefix == 0:
-            return bytes(out)
-        end = cursor + (prefix & 0x7FFF)
-        need(end <= n, "frame beyond end of file")
-        if prefix & 0x8000:
-            out += raw[cursor:end]
-            cursor = end
-            continue
-        while cursor < end:
-            need(cursor + 2 <= end, "truncated flag word")
-            flags = (raw[cursor] << 8) | raw[cursor + 1]
-            cursor += 2
-            for bit in range(15, -1, -1):
-                if cursor >= end:
-                    break
-                if not (flags >> bit) & 1:
-                    out.append(raw[cursor])
-                    cursor += 1
-                    continue
-                need(cursor + 2 <= end, "truncated back-reference")
-                first, second = raw[cursor], raw[cursor + 1]
-                cursor += 2
-                distance = ((first & 0xF8) << 5) | second
-                count = first & 7
-                if count == 7:
-                    need(cursor < end, "truncated length byte")
-                    count += raw[cursor]
-                    cursor += 1
-                if distance == 0:
-                    need(cursor == end, "frame terminator before frame end")
-                    break
-                if count == 262:
-                    while True:
-                        need(cursor < end, "truncated long length")
-                        extra = raw[cursor]
-                        cursor += 1
-                        count += extra
-                        if extra != 255:
-                            break
-                count += 3
-                need(distance <= len(out), "back-reference before start of output")
-                need(len(out) + count <= MAX_OUTPUT, "decoded data too large")
-                start = len(out) - distance
-                if distance >= count:
-                    out += out[start:start + count]
-                else:
-                    for i in range(count):
-                        out.append(out[start + i])
+_HEAD = 0x80            # reserved header before the encoded stream
+_LITERAL = 0x8000       # tag bit: set = stored frame, clear = compressed frame
 
+
+def _inflate(src, start, stop, out, limit):
+    """Decode one compressed frame body src[start:stop] onto out (references may reach earlier frames)."""
+    cur, flags, left = start, 0, 0
+    while True:
+        if left == 0:
+            need(cur + 2 <= stop, "压缩帧在控制字处截断")
+            flags = (src[cur] << 8) | src[cur + 1]
+            cur, left = cur + 2, 16
+        is_ref = flags & 0x8000
+        flags, left = (flags << 1) & 0xFFFF, left - 1
+        if not is_ref:
+            need(cur < stop, "压缩帧在原样字节处截断")
+            need(len(out) < limit, "解码数据超过上限")
+            out.append(src[cur])
+            cur += 1
+            continue
+        need(cur + 2 <= stop, "压缩帧在回溯记号处截断")
+        hi, lo = src[cur], src[cur + 1]
+        cur += 2
+        back = ((hi >> 3) << 8) | lo
+        run = hi & 7
+        if run == 7:
+            need(cur < stop, "压缩帧在长度扩展处截断")
+            run += src[cur]
+            cur += 1
+        if back == 0:
+            need(cur == stop, "压缩帧的结束记号不在帧尾")
+            return
+        if run == 262:
+            while True:
+                need(cur < stop, "压缩帧在长度扩展处截断")
+                step = src[cur]
+                cur += 1
+                run += step
+                if step != 255:
+                    break
+        run += 3
+        need(back <= len(out), "回溯距离超出已解出的数据")
+        need(len(out) + run <= limit, "解码数据超过上限")
+        origin = len(out) - back
+        if back >= run:
+            out += out[origin:origin + run]
+        else:
+            piece = bytes(out[origin:])
+            out += (piece * (run // back + 1))[:run]
+
+
+def unpack(raw):
+    """Decode the encoded stream of a GR III update package and return the payload.
+
+    Written from the project's own format spec. The stream starts after the
+    reserved header and is a run of big-endian tagged frames ended by a zero
+    tag. Only the stream is decoded here: callers may pass a whole package or
+    just header + stream, and check footer, padding and checksums themselves.
+    """
+    need(isinstance(raw, (bytes, bytearray)), "需要二进制数据")
+    size = len(raw)
+    need(size >= _HEAD + 2, "数据太短，没有编码流")
+    out = bytearray()
+    at = _HEAD
+    while True:
+        need(at + 2 <= size, "编码流在帧标记处截断，没有结束标记")
+        tag = (raw[at] << 8) | raw[at + 1]
+        at += 2
+        if tag == 0:
+            break
+        body_end = at + (tag & 0x7FFF)
+        need(body_end <= size, "帧正文越过数据结尾")
+        if tag & _LITERAL:
+            need(len(out) + (body_end - at) <= MAX_OUTPUT, "解码数据超过上限")
+            out += raw[at:body_end]
+        else:
+            _inflate(raw, at, body_end, out, MAX_OUTPUT)
+        at = body_end
+    need(out, "编码流里没有数据")
+    return bytes(out)
 
 class Payload:
     def __init__(self, payload, layout=V210, pinned=True):

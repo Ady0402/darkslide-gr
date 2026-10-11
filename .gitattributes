@@ -1,2 +1,9 @@
+# Darkslide 的换行约定：仓库里的文本文件一律 LF；Windows 双击运行的批处理必须是 CRLF。
 * text=auto eol=lf
-start.cmd text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+# 二进制素材不做换行转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.bin binary

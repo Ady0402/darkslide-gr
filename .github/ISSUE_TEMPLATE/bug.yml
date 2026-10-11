@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: Darkslide 版本 / Darkslide version
-      placeholder: "0.1.0"
+      placeholder: "0.2.0"
     validations:
       required: true
 
@@ -24,6 +24,7 @@ body:
         - 启动 / Starting the tool
         - 导入固件 / Importing firmware
         - 编辑图标或预设名 / Editing icons or preset names
+        - 编辑关机画面 / Editing the shutdown screen
         - 生成 / Building
         - 刷入后在相机上 / On the camera after flashing
         - 其他 / Other

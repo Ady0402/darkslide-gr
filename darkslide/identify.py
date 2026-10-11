@@ -1,9 +1,13 @@
-"""Classify an imported firmware file (功能逻辑 §1)."""
+"""Classify an imported firmware file."""
 import hashlib
 
 
-def sha256(data):
-    return hashlib.sha256(data).hexdigest()
+def digest_of(blob):
+    """Hex SHA-256 of a byte string (the content address used for inputs, assets and builds)."""
+    return hashlib.sha256(blob).hexdigest()
+
+
+sha256 = digest_of  # older name; tests/test_grain.py still imports it
 
 
 def identify(data, filename, template, builds):
@@ -11,7 +15,7 @@ def identify(data, filename, template, builds):
 
     builds: list of past build records (each with output_sha256 and project_id).
     """
-    digest = sha256(data)
+    digest = digest_of(data)
     base = dict(sha256=digest, size=len(data), filename=filename)
     for item in template.get("official_inputs", []):
         if digest == item["sha256"]:

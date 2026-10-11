@@ -1,15 +1,21 @@
-"""Local HTTP server: static pages plus a small JSON API. Binds to 127.0.0.1 only."""
+"""Local HTTP server for Darkslide: static pages plus a small JSON API, bound to 127.0.0.1 only.
+
+The HTTP layer below `App` is written from our own spec (2026-10-11).
+"""
 import json
-import threading
+import logging
 import mimetypes
+import os
 import re
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from . import VERSION, fwread, generate, names, pngcheck, template as tpl
+from . import VERSION, fwread, fwzip, generate, names, pngcheck, shutdown_verify, template as tpl
 from .identify import identify
 from .paths import WEB_ROOT, data_root
-from .store import Store, StoreError, read_json, write_json
+from .store import SHUTDOWN_BUDGET, Store, StoreError, read_json, write_json
 
 MAX_BODY = 64 * 1024 * 1024
 
@@ -24,11 +30,13 @@ class App:
     def __init__(self, root=None, template_name="gr3_v210.json"):
         self.store = Store(root or data_root())
         self.template = tpl.load(template_name)
+        self.detail = tpl.load_detail(self.template)
 
     def status(self):
-        return dict(version=VERSION, template=self.template, projects=self.store.list_projects(),
+        return dict(version=VERSION, template=self.template, detail=self.detail, projects=self.store.list_projects(),
                     builds=self.store.builds(), prefs=self.store.prefs(),
-                    data_root=str(self.store.root))
+                    data_root=str(self.store.root),
+                    shutdown=dict(budget=SHUTDOWN_BUDGET, width=720, height=480))
 
     def import_firmware(self, data, filename):
         if not data:
@@ -68,6 +76,21 @@ class App:
             value = self.extract_factory(digest, self.store.input_path(digest).read_bytes())
         return value
 
+    def factory_shutdown(self, digest):
+        """Factory normal shutdown image (GoodBye.jpg) from the imported official input, read-only, cached."""
+        target = self.store.factory_dir(digest) / "shutdown.jpg"
+        if not target.exists():
+            if not self.store.has_input(digest):
+                raise ApiError(404, "没有导入这个固件")
+            payload = fwread.unpack(self.store.input_path(digest).read_bytes())
+            found = shutdown_verify.find_resource(payload, b"B:\\Resource\\Jpeg\\GoodBye.jpg")
+            if len(found) != 1:
+                raise ApiError(422, "没有在固件里找到原厂关机图")
+            at, n = found[0]
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(payload[at:at + n])
+        return target.read_bytes()
+
     def check_name(self, body):
         slot = tpl.slot(self.template, int(body.get("slot")))
         name = body.get("name")
@@ -78,173 +101,488 @@ class App:
                     ok=names.name_ok(name, limit))
 
 
-def make_handler(app):
-    class Handler(BaseHTTPRequestHandler):
-        server_version = "Darkslide/" + VERSION
+# ---------------------------------------------------------------------------
+# HTTP layer, written from our own spec.
+#
+# Every request takes the same path through `RequestHandler.respond`:
+#   Host check -> Origin check (non-GET only) -> /api/ route table, or a static
+#   file for GET -> exactly one reply.
+# A route's result is rendered to bytes before anything goes on the wire, so a
+# failure while rendering is mapped like any other. Exceptions become JSON
+# errors through ERROR_REPLIES; anything not listed there is left to
+# socketserver, as the spec lists no other.
+# ---------------------------------------------------------------------------
 
-        def log_message(self, fmt, *args):
+LOOPBACK = "127.0.0.1"
+LOCAL_HOSTNAMES = (LOOPBACK, "localhost")
+JSON_TYPE = "application/json; charset=utf-8"
+TEXT_TYPE = "text/plain; charset=utf-8"
+BINARY_TYPE = "application/octet-stream"
+# Sent right after the status line of every reply, the stdlib's own protocol
+# errors included (see RequestHandler.send_response).
+SAFETY_HEADERS = (
+    ("X-Content-Type-Options", "nosniff"),
+    ("Referrer-Policy", "no-referrer"),
+    ("Cache-Control", "no-store"),
+)
+PREF_KEYS = ("preflight_seen", "guide_off", "guide_start_seen", "guide_work_seen")
+# Seconds a single socket read or write may wait before the connection is dropped.
+IDLE_TIMEOUT = 30
+# A declared request body that the route never read (403, 404, 405, 413 ...) is
+# read and thrown away after the reply, up to this many bytes, so the client can
+# finish sending and then read the answer instead of a connection reset.
+DISCARD_LIMIT = 1024 * 1024 * 1024
+
+log = logging.getLogger("darkslide.http")
+
+
+class Reply:
+    """A reply that is more than "200 + JSON": another status, raw bytes, extra headers.
+
+    `body` is a dict or list (sent as JSON) or bytes (sent as-is with `content_type`).
+    """
+    __slots__ = ("body", "status", "content_type", "headers")
+
+    def __init__(self, body, status=200, content_type=None, headers=()):
+        self.body = body
+        self.status = status
+        self.content_type = content_type
+        self.headers = tuple(headers)
+
+
+def disposition(filename):
+    """The extra header that makes a browser save the body as `filename`."""
+    return ("Content-Disposition", 'attachment; filename="%s"' % filename)
+
+
+def render(reply, errors="strict"):
+    """(status, headers, body bytes) for a route result (dict or list) or a Reply.
+
+    Headers come as the route's own first, then Content-Type and Content-Length.
+    `errors` is the UTF-8 error handler used for JSON text.
+    """
+    if not isinstance(reply, Reply):
+        reply = Reply(reply)
+    if isinstance(reply.body, (bytes, bytearray)):
+        data, kind = bytes(reply.body), reply.content_type or BINARY_TYPE
+    else:
+        data = json.dumps(reply.body, ensure_ascii=False).encode("utf-8", errors)
+        kind = reply.content_type or JSON_TYPE
+    return reply.status, reply.headers + (("Content-Type", kind), ("Content-Length", str(len(data)))), data
+
+
+# Exception -> (status, message). Checked in order: StoreError and
+# FirmwareReadError are ValueErrors, so they must come before the generic row.
+ERROR_REPLIES = (
+    (ApiError, lambda exc: (exc.status, str(exc))),
+    (StoreError, lambda exc: (400, str(exc))),
+    (fwread.FirmwareReadError, lambda exc: (422, "读取固件失败：" + str(exc))),
+    ((KeyError, ValueError, TypeError), lambda exc: (400, "请求参数错误")),
+)
+
+
+def error_reply(exc):
+    """The JSON error reply for `exc`, or None when the spec does not map it."""
+    for kinds, describe in ERROR_REPLIES:
+        if isinstance(exc, kinds):
+            status, message = describe(exc)
+            return Reply({"error": message}, status)
+    return None
+
+
+def split_target(target):
+    """(path, query) of a request target.
+
+    As in v0.2, ";params" at the end of the last path segment are not part of
+    the path: "/api/status;x" is "/api/status" (urlparse rather than urlsplit).
+    """
+    parts = urlparse(target)
+    return parts.path, parts.query
+
+
+def printable(text):
+    """`text` with each non-printable character (ESC, BEL, CR ...) spelled as an escape."""
+    return "".join(ch if ch.isprintable() else ascii(ch)[1:-1] for ch in text)
+
+
+# --- static files -----------------------------------------------------------
+
+def stays_inside(base, relative, flavour=os.path):
+    """Text-only check, made before the filesystem is touched: does `relative`,
+    joined onto the normalised absolute folder `base`, name something strictly
+    below it? Refuses NUL bytes, absolute names, other drives and UNC shares
+    (//host/share, \\\\host\\share) and ".." walks out of base. `flavour` is
+    os.path, or posixpath / ntpath in tests.
+    """
+    if "\0" in relative:
+        return False
+    joined = flavour.normpath(flavour.join(base, relative))
+    try:
+        return joined != base and flavour.commonpath([base, joined]) == base
+    except ValueError:  # another drive or share, or mixed absolute and relative
+        return False
+
+
+def static_target(root, url_path):
+    """The regular file under `root` that `url_path` names, or None.
+
+    "/" and "" mean index.html; otherwise one leading "/" is dropped and the rest
+    is percent-decoded. The name must pass stays_inside first; then the resolved
+    path (symlinks followed) must still be inside root and be a regular file.
+    """
+    if url_path in ("", "/"):
+        relative = "index.html"
+    else:
+        relative = unquote(url_path[1:] if url_path.startswith("/") else url_path)
+    base = Path(root).resolve()
+    if not stays_inside(str(base), relative):
+        return None
+    try:
+        target = (base / relative).resolve()
+        if base in target.parents and target.is_file():
+            return target
+    except (OSError, ValueError, RuntimeError):  # over-long names, symlink loops
+        pass
+    return None
+
+
+def static_type(path):
+    # The whole path, not just the name: a bare "data:x.js" would be read as a data: URL.
+    kind = mimetypes.guess_type(os.fspath(path))[0] or BINARY_TYPE
+    if kind.startswith("text/") or kind == "application/javascript":
+        kind += "; charset=utf-8"
+    return kind
+
+
+def static_reply(root, url_path):
+    target = static_target(root, url_path)
+    if target is not None:
+        try:
+            return Reply(target.read_bytes(), content_type=static_type(target))
+        except OSError:  # vanished or unreadable since the check
+            pass
+    return Reply(b"not found", 404, TEXT_TYPE)
+
+
+# --- API routes ---------------------------------------------------------------
+# Each route is called as func(handler, **named_groups) and returns a dict/list
+# (200 JSON) or a Reply.
+
+def api_status(req):
+    return req.app.status()
+
+
+def api_import_firmware(req):
+    filename = unquote(req.headers.get("X-Filename", ""))
+    try:  # the official download is gr3_v210.zip; take fwdc239b.bin out of it
+        data, filename = fwzip.unwrap(req.read_body(), filename)
+    except fwzip.ZipError as e:
+        raise ApiError(422, str(e))
+    return req.app.import_firmware(data, filename)
+
+
+def api_quit(req):
+    req.after_reply = req.server.stop_soon
+    return {"ok": True}
+
+
+def api_check_name(req):
+    return req.app.check_name(req.read_json())
+
+
+def api_set_pref(req):
+    body = req.read_json()
+    key = body.get("key")
+    if key not in PREF_KEYS:  # tuple, so an unhashable key is still just "unknown"
+        raise ApiError(400, "未知设置")
+    return req.store.set_pref(key, bool(body.get("value")))
+
+
+def api_create_project(req):
+    body = req.read_json()
+    return req.store.create_project(body.get("title"), body.get("input_sha256"), req.app.template)
+
+
+def api_factory_shutdown(req, digest):
+    return Reply(req.app.factory_shutdown(digest), content_type="image/jpeg")
+
+
+def api_factory(req, digest):
+    return req.app.factory(digest)
+
+
+def api_factory_icon(req, digest, n):
+    req.app.factory(digest)
+    icon = req.store.factory_dir(digest) / "icons" / ("%d.png" % int(n))
+    if not icon.is_file():
+        raise ApiError(404, "没有这个图标")
+    return Reply(icon.read_bytes(), content_type="image/png")
+
+
+def api_build_firmware(req, bid):
+    data = req.store.build_path(bid, "fwdc239b.bin").read_bytes()
+    return Reply(data, content_type=BINARY_TYPE, headers=[disposition("fwdc239b.bin")])
+
+
+def api_build_manifest(req, bid):
+    data = req.store.build_path(bid, "manifest.json").read_bytes()
+    return Reply(data, content_type=JSON_TYPE, headers=[disposition("darkslide-manifest-%s.json" % bid)])
+
+
+def api_get_project(req, pid):
+    return req.store.get_project(pid)
+
+
+def api_rename_project(req, pid):
+    return req.store.rename_project(pid, req.read_json().get("title"))
+
+
+def api_put_draft(req, pid):
+    return req.store.put_draft(pid, req.read_json().get("changes"), req.app.template)
+
+
+def api_save_project(req, pid):
+    return req.store.save(pid, req.app.template)
+
+
+def api_upload_asset(req, pid):
+    data = req.read_body()
+    if req.query == "kind=shutdown":
+        return req.store.put_shutdown_jpeg(pid, data)
+    return req.store.put_asset(pid, data, expect_icon=(req.query == "kind=icon"))
+
+
+def api_get_asset(req, pid, digest):
+    path = req.store.asset_path(pid, digest)
+    kind = "image/jpeg" if path.suffix == ".jpg" else "image/png"
+    return Reply(path.read_bytes(), content_type=kind)
+
+
+def api_generate(req, pid):
+    app, store = req.app, req.store
+    if not app.template.get("reviewed"):
+        raise ApiError(409, "模板不可用，不能生成")
+    project = store.get_project(pid)
+    source = store.input_path(project["input_sha256"])
+    if not source.exists():
+        raise ApiError(409, "找不到官方原件，请重新导入")
+    try:
+        output, manifest = generate.run(store, project, app.template, source.read_bytes())
+    except generate.GenerateError as exc:
+        return Reply({"error": str(exc), "checks": exc.checks}, 422)
+    return store.put_build(output, manifest)
+
+
+# Placeholders usable in route paths; everything else in a path is literal.
+PATH_PARTS = {
+    "<pid>": r"(?P<pid>p_[0-9a-f]{12})",
+    "<bid>": r"(?P<bid>b_[0-9a-f]{12})",
+    "<digest>": r"(?P<digest>[0-9a-f]{64})",
+    "<n>": r"(?P<n>[0-9]{1,2})",
+}
+
+
+def path_pattern(spec):
+    """Compile "/api/projects/<pid>/save" into a regex (used with fullmatch)."""
+    pieces = re.split(r"(<[a-z]+>)", spec)
+    return re.compile("".join(PATH_PARTS[p] if p in PATH_PARTS else re.escape(p) for p in pieces))
+
+
+ROUTES = tuple((method, path_pattern(spec), func) for method, spec, func in (
+    ("GET", "/api/status", api_status),
+    ("POST", "/api/firmware", api_import_firmware),
+    ("POST", "/api/quit", api_quit),
+    ("POST", "/api/check-name", api_check_name),
+    ("POST", "/api/prefs", api_set_pref),
+    ("POST", "/api/projects", api_create_project),
+    ("GET", "/api/factory/<digest>/shutdown.jpg", api_factory_shutdown),
+    ("GET", "/api/factory/<digest>", api_factory),
+    ("GET", "/api/factory/<digest>/icons/<n>.png", api_factory_icon),
+    ("GET", "/api/builds/<bid>/firmware", api_build_firmware),
+    ("GET", "/api/builds/<bid>/manifest", api_build_manifest),
+    ("GET", "/api/projects/<pid>", api_get_project),
+    ("PATCH", "/api/projects/<pid>", api_rename_project),
+    ("PUT", "/api/projects/<pid>/draft", api_put_draft),
+    ("POST", "/api/projects/<pid>/save", api_save_project),
+    ("POST", "/api/projects/<pid>/assets", api_upload_asset),
+    ("GET", "/api/projects/<pid>/assets/<digest>", api_get_asset),
+    ("POST", "/api/projects/<pid>/generate", api_generate),
+))
+
+
+def find_route(method, path):
+    """(func, named groups) for the first ROUTES row whose method matches and whose
+    pattern matches the whole path; ApiError 404 when none does."""
+    for verb, pattern, func in ROUTES:
+        if verb == method:
+            match = pattern.fullmatch(path)
+            if match:
+                return func, match.groupdict()
+    raise ApiError(404, "not found")
+
+
+# --- handler and server -------------------------------------------------------
+
+class RequestHandler(BaseHTTPRequestHandler):
+    """Serves one connection of a LocalServer; the application is `self.server.app`."""
+
+    server_version = "Darkslide/" + VERSION
+    # A request line without a version (HTTP/0.9 style) is answered as HTTP/1.0,
+    # so that reply also gets a status line and headers.
+    default_request_version = "HTTP/1.0"
+    timeout = IDLE_TIMEOUT
+
+    # Request state, reset by respond() for every request.
+    query = ""
+    after_reply = None
+    _body = None
+
+    @property
+    def app(self):
+        return self.server.app
+
+    @property
+    def store(self):
+        return self.server.app.store
+
+    def do_GET(self):
+        self.respond()
+
+    def do_POST(self):
+        self.respond()
+
+    def do_PUT(self):
+        self.respond()
+
+    def do_PATCH(self):
+        self.respond()
+
+    def parse_request(self):
+        accepted = super().parse_request()
+        if self.request_version == "HTTP/0.9":  # an explicit "HTTP/0.9" token: still reply with headers
+            self.request_version = "HTTP/1.0"
+        return accepted
+
+    # -- the fixed order of section 二 --
+    def respond(self):
+        self.query, self.after_reply, self._body = "", None, None
+        try:
+            status, headers, data = render(self.route())
+        except Exception as exc:  # noqa: BLE001 - mapped by table, others re-raised
+            # (a socket timeout is re-raised too; handle_one_request then drops the connection quietly)
+            mapped = error_reply(exc)
+            if mapped is None:
+                raise
+            self.after_reply = None
+            # messages may quote client text (a slot key, say); escape what UTF-8 cannot carry
+            status, headers, data = render(mapped, errors="backslashreplace")
+        self.send_response(status)
+        for name, value in headers:
+            self.send_header(name, value)
+        self.end_headers()
+        self.wfile.write(data)
+        if self.after_reply is not None:
+            self.after_reply()
+        self.discard_unread_body()
+
+    def route(self):
+        port = self.server.server_address[1]
+        hosts = ["%s:%d" % (name, port) for name in LOCAL_HOSTNAMES]
+        if self.single_header("Host") not in hosts:
+            raise ApiError(403, "forbidden host")
+        if self.command != "GET" and self.headers.get_all("Origin") is not None:
+            if self.single_header("Origin") not in ["http://" + host for host in hosts]:
+                raise ApiError(403, "forbidden origin")
+        path, self.query = split_target(self.path)
+        if path.startswith("/api/"):
+            func, groups = find_route(self.command, path)
+            return func(self, **groups)
+        if self.command != "GET":
+            raise ApiError(405, "method not allowed")
+        return static_reply(WEB_ROOT, path)
+
+    def single_header(self, name):
+        """The header's value if it appears exactly once, else None."""
+        values = self.headers.get_all(name) or []
+        return values[0] if len(values) == 1 else None
+
+    # -- request body --
+    def read_body(self):
+        """The body by Content-Length (b"" when absent or 0); 413 above MAX_BODY.
+
+        A Content-Length that is not a whole number >= 0 raises ValueError."""
+        if self._body is None:
+            size = int(self.headers.get("Content-Length") or 0)
+            if size < 0:
+                raise ValueError("negative Content-Length")
+            if size > MAX_BODY:
+                raise ApiError(413, "文件太大")
+            self._body = self.rfile.read(size) if size else b""
+        return self._body
+
+    def read_json(self):
+        """The body as a JSON object; an empty body counts as {}."""
+        try:
+            raw = self.read_body()
+        except ValueError:  # unusable Content-Length: on JSON routes v0.2 called that malformed
+            raise ApiError(400, "请求格式错误") from None
+        if not raw:
+            return {}
+        try:
+            value = json.loads(raw)
+        except (ValueError, RecursionError):
+            value = None
+        if not isinstance(value, dict):
+            raise ApiError(400, "请求格式错误")
+        return value
+
+    def discard_unread_body(self):
+        """Read and drop a declared body the route never read (at most DISCARD_LIMIT bytes)."""
+        if self._body is not None:
+            return
+        try:
+            left = min(int(self.headers.get("Content-Length") or 0), DISCARD_LIMIT)
+        except ValueError:
+            return
+        try:
+            while left > 0:
+                chunk = self.rfile.read(min(left, 256 * 1024))
+                if not chunk:
+                    break
+                left -= len(chunk)
+        except OSError:  # timed out or reset; the connection is closed next anyway
             pass
 
-        # helpers ----------------------------------------------------------
-        def _host_ok(self):
-            port = self.server.server_address[1]
-            return self.headers.get("Host") in ("127.0.0.1:%d" % port, "localhost:%d" % port)
+    # -- reply --
+    def send_response(self, code, message=None):
+        super().send_response(code, message)
+        for name, value in SAFETY_HEADERS:
+            self.send_header(name, value)
 
-        def _origin_ok(self):
-            origin = self.headers.get("Origin")
-            if origin is None:
-                return True
-            port = self.server.server_address[1]
-            return origin in ("http://127.0.0.1:%d" % port, "http://localhost:%d" % port)
+    def version_string(self):
+        return self.server_version
 
-        def _send(self, status, body, ctype="application/json; charset=utf-8", extra=None):
-            if isinstance(body, (dict, list)):
-                body = json.dumps(body, ensure_ascii=False).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", ctype)
-            self.send_header("Content-Length", str(len(body)))
-            self.send_header("Cache-Control", "no-store")
-            self.send_header("X-Content-Type-Options", "nosniff")
-            for k, v in (extra or {}).items():
-                self.send_header(k, v)
-            self.end_headers()
-            self.wfile.write(body)
-
-        def _body(self):
-            length = int(self.headers.get("Content-Length") or 0)
-            if length > MAX_BODY:
-                raise ApiError(413, "文件太大")
-            return self.rfile.read(length) if length else b""
-
-        def _json(self):
-            try:
-                value = json.loads(self._body() or b"{}")
-            except ValueError:
-                raise ApiError(400, "请求格式错误")
-            if not isinstance(value, dict):
-                raise ApiError(400, "请求格式错误")
-            return value
-
-        def _dispatch(self, method):
-            if not self._host_ok():
-                return self._send(403, dict(error="forbidden host"))
-            if method != "GET" and not self._origin_ok():
-                return self._send(403, dict(error="forbidden origin"))
-            path = urlparse(self.path).path
-            try:
-                if path.startswith("/api/"):
-                    return self._api(method, path)
-                if method != "GET":
-                    raise ApiError(405, "method not allowed")
-                return self._static(path)
-            except ApiError as exc:
-                return self._send(exc.status, dict(error=str(exc)))
-            except StoreError as exc:
-                return self._send(400, dict(error=str(exc)))
-            except fwread.FirmwareReadError as exc:
-                return self._send(422, dict(error="读取固件失败：" + str(exc)))
-            except (KeyError, ValueError, TypeError):
-                return self._send(400, dict(error="请求参数错误"))
-
-        def do_GET(self):
-            self._dispatch("GET")
-
-        def do_POST(self):
-            self._dispatch("POST")
-
-        def do_PUT(self):
-            self._dispatch("PUT")
-
-        def do_PATCH(self):
-            self._dispatch("PATCH")
-
-        # routes -----------------------------------------------------------
-        def _api(self, method, path):
-            store = app.store
-            if path == "/api/status" and method == "GET":
-                return self._send(200, app.status())
-            if path == "/api/firmware" and method == "POST":
-                filename = unquote(self.headers.get("X-Filename") or "")
-                return self._send(200, app.import_firmware(self._body(), filename))
-            if path == "/api/quit" and method == "POST":
-                # answer first, then stop the server from another thread
-                self._send(200, dict(ok=True))
-                threading.Thread(target=self.server.shutdown, daemon=True).start()
-                return None
-            if path == "/api/check-name" and method == "POST":
-                return self._send(200, app.check_name(self._json()))
-            if path == "/api/prefs" and method == "POST":
-                body = self._json()
-                if body.get("key") not in ("preflight_seen", "guide_off", "guide_start_seen", "guide_work_seen"):
-                    raise ApiError(400, "未知设置")
-                return self._send(200, store.set_pref(body["key"], bool(body.get("value"))))
-            if path == "/api/projects" and method == "POST":
-                body = self._json()
-                return self._send(200, store.create_project(body.get("title"), body.get("input_sha256"), app.template))
-            f = re.match(r"^/api/factory/([0-9a-f]{64})(?:/icons/(\d{1,2})\.png)?$", path)
-            if f and method == "GET":
-                if f.group(2) is None:
-                    return self._send(200, app.factory(f.group(1)))
-                app.factory(f.group(1))
-                icon = store.factory_dir(f.group(1)) / "icons" / ("%d.png" % int(f.group(2)))
-                if not icon.exists():
-                    raise ApiError(404, "没有这个图标")
-                return self._send(200, icon.read_bytes(), "image/png")
-            b = re.match(r"^/api/builds/(b_[0-9a-f]{12})/(firmware|manifest)$", path)
-            if b and method == "GET":
-                if b.group(2) == "firmware":
-                    data = store.build_path(b.group(1), "fwdc239b.bin").read_bytes()
-                    return self._send(200, data, "application/octet-stream",
-                                      {"Content-Disposition": 'attachment; filename="fwdc239b.bin"'})
-                data = store.build_path(b.group(1), "manifest.json").read_bytes()
-                return self._send(200, data, "application/json; charset=utf-8",
-                                  {"Content-Disposition": 'attachment; filename="darkslide-manifest-%s.json"' % b.group(1)})
-            m = re.match(r"^/api/projects/(p_[0-9a-f]{12})(/.*)?$", path)
-            if not m:
-                raise ApiError(404, "not found")
-            pid, rest = m.group(1), m.group(2) or ""
-            if rest == "" and method == "GET":
-                return self._send(200, store.get_project(pid))
-            if rest == "" and method == "PATCH":
-                return self._send(200, store.rename_project(pid, self._json().get("title")))
-            if rest == "/draft" and method == "PUT":
-                return self._send(200, store.put_draft(pid, self._json().get("changes"), app.template))
-            if rest == "/save" and method == "POST":
-                return self._send(200, store.save(pid, app.template))
-            if rest == "/assets" and method == "POST":
-                kind = urlparse(self.path).query
-                return self._send(200, store.put_asset(pid, self._body(), expect_icon=(kind == "kind=icon")))
-            a = re.match(r"^/assets/([0-9a-f]{64})$", rest)
-            if a and method == "GET":
-                return self._send(200, store.asset_path(pid, a.group(1)).read_bytes(), "image/png")
-            if rest == "/generate" and method == "POST":
-                if not app.template.get("reviewed"):
-                    raise ApiError(409, "模板尚未复核，不能生成")
-                project = store.get_project(pid)
-                official = store.input_path(project["input_sha256"])
-                if not official.exists():
-                    raise ApiError(409, "找不到官方原件，请重新导入")
-                try:
-                    output, manifest = generate.run(store, project, app.template, official.read_bytes())
-                except generate.GenerateError as exc:
-                    return self._send(422, dict(error=str(exc), checks=exc.checks))
-                return self._send(200, store.put_build(output, manifest))
-            raise ApiError(404, "not found")
-
-        def _static(self, path):
-            rel = "index.html" if path in ("/", "") else unquote(path.lstrip("/"))
-            target = (WEB_ROOT / rel).resolve()
-            if WEB_ROOT.resolve() not in target.parents or not target.is_file():
-                return self._send(404, b"not found", "text/plain; charset=utf-8")
-            ctype = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
-            if ctype.startswith("text/") or ctype in ("application/javascript",):
-                ctype += "; charset=utf-8"
-            return self._send(200, target.read_bytes(), ctype)
-
-    return Handler
+    def log_message(self, fmt, *args):
+        if log.isEnabledFor(logging.DEBUG):
+            log.debug("%s %s", self.address_string(), printable(fmt % args))
 
 
-def serve(port=8787, root=None):
-    app = App(root)
-    httpd = ThreadingHTTPServer(("127.0.0.1", port), make_handler(app))
-    return httpd
+class LocalServer(ThreadingHTTPServer):
+    """Threaded HTTP server for one App, listening on 127.0.0.1 only."""
+
+    daemon_threads = True
+
+    def __init__(self, address, app):
+        if address[0] != LOOPBACK:
+            raise ValueError("Darkslide 只监听 %s，不能绑定 %r" % (LOOPBACK, address[0]))
+        self.app = app
+        super().__init__(address, RequestHandler)
+
+    def stop_soon(self):
+        """Stop serve_forever without blocking the caller (shutdown() waits for the loop)."""
+        threading.Thread(target=self.shutdown, name="darkslide-stop", daemon=True).start()
+
+
+def create_server(port, root=None):
+    """Bind an App over `root` (default data folder) to 127.0.0.1:port; not yet serving."""
+    return LocalServer((LOOPBACK, port), App(root))

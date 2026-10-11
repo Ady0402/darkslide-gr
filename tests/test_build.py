@@ -33,7 +33,7 @@ class Builder(unittest.TestCase):
                     # Arbitrary transparent RGB must never enter the output.
                     pixels[i:i + 3] = b"\x12\x34\x56"
             cls.edits.append(dict(kind="icon", slot=slot, icon_id=identifier, pixels=bytes(pixels)))
-        for slot, identifier, text in ((7, 274, "Posi Warm"), (11, 278, "Gold200"), (12, 273, "Nega Warm")):
+        for slot, identifier, text in ((7, 274, "Posi Warm"), (11, 278, "Day200"), (12, 273, "Nega Warm")):
             cls.edits.append(dict(kind="name", slot=slot, string_id=identifier, text=text))
         cls.result = builder.build(cls.raw, cls.edits, cls.template)
         cls.decoded = fwread.unpack(cls.result["output"])
