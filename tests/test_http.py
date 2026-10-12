@@ -690,7 +690,7 @@ class Routes(Served):
         self.assertFalse(value["unsaved"])
         self.assertEqual((value["changes"], len(value["versions"])), ({"7": {"name": "Posi Warm"}}, 1))
         self.assertError(self.call("PUT", "/api/projects/%s/draft" % pid, {"changes": []}), 400, "改动格式错误")
-        self.call("PUT", "/api/projects/%s/draft" % pid, {"changes": {"7": {"name": "Positive Film Warm"}}})
+        self.call("PUT", "/api/projects/%s/draft" % pid, {"changes": {"7": {"name": "Positive Film Warmer"}}})
         self.assertError(self.call("POST", "/api/projects/%s/save" % pid), 400, "正片 的预设名没有通过检查")
 
     def test_upload_assets_by_exact_query(self):

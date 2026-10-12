@@ -231,7 +231,7 @@ class Store:
                 name = edit["name"]
                 if not isinstance(name, str):
                     raise StoreError("预设名必须是文字")
-                if strict and not names.name_ok(name, len(slot["factory_en"])):
+                if strict and not names.name_ok(name, slot.get("name_max", len(slot["factory_en"]))):
                     raise StoreError("%s 的预设名没有通过检查" % slot["name"])
                 out["name"] = name
             if "icon" in edit:

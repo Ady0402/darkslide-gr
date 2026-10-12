@@ -2,7 +2,7 @@
 
 [简体中文](README.md) | English
 
-Give your GR III your own preset icons, preset names and shutdown screen, right from a browser on your own computer.
+Give your GR III your own preset icons, preset names and shutdown screen, and turn on grain for Negative Film, right from a browser on your own computer.
 
 ![Darkslide GR editor](docs/images/editor.png)
 
@@ -10,7 +10,7 @@ Give your GR III your own preset icons, preset names and shutdown screen, right 
 > **Flashing modified firmware is risky. Please read this first.**
 >
 > - Your camera may fail to boot, stop working properly, or be **permanently bricked**. You may also lose warranty and official support.
-> - The author has flashed and tested it on **one** GR III (firmware 2.10): icons and preset names, the shutdown screen, and all three together, with no problems found. That is a sample of one camera, and your own icons, preset names and pictures have never been on real hardware; all pre-build checks run offline and are no substitute for testing on hardware.
+> - The author has flashed and tested it on **one** GR III (firmware 2.10): icons and preset names for all 12 open presets (including names lengthened to the limit), the shutdown screen, Negative Film grain, several changes together, and flashing the official 2.10 original back afterwards, with no problems found. That is a sample of one camera, and your own icons, preset names and pictures have never been on real hardware; all pre-build checks run offline and are no substitute for testing on hardware.
 > - This project is not affiliated with or endorsed by RICOH. The author accepts no liability for any damage.
 > - What Darkslide produces is a firmware file, nothing more: it **does not talk to your camera or touch your memory card**. Flashing it, and how, is your call.
 >
@@ -39,18 +39,24 @@ Give the presets in your GR III menu **your own icons and names**. For example, 
 
 | Preset | Icon | Name |
 |---|---|---|
-| Positive Film, Cross Processing, Negative Film | ✅ | ✅ |
+| Vivid, Monotone, HDR Tone | ✅ | ✅ (up to 12 characters) |
+| Retro | ✅ | ✅ (up to 8 characters) |
+| Soft Monotone, Hard Monotone, Hi-Contrast B&W, Positive Film, Bleach Bypass, Cross Processing, Negative Film | ✅ | ✅ (factory length) |
 | Standard | ✅ | — |
-| Other presets | Coming in later versions | |
+| Custom 1/2 | — | — |
 
 - **Two ways to make an icon**: upload any image and frame it with the crop box, or type a few letters to generate a text icon in the factory style.
-- **Preset names**: checked as you type, e.g. too long, or characters the camera can't display.
-- **What it never touches**: colour rendering, image-quality parameters and all other settings stay as they are. The firmware version stays 2.10.
+- **Preset names**: checked as you type, e.g. characters the camera can't display; typing stops at the length limit. English and Simplified Chinese menus show the new name, other languages keep the factory name; when a name is longer than the factory English name, one less common menu language also shows the new name.
+- **What it never touches**: apart from Negative Film grain, colour rendering, image-quality parameters and all other settings stay as they are. The firmware version stays 2.10. The detail-settings card shows each preset's factory default values for reference only; you adjust them yourself in the camera menu, and they are not written into the firmware.
 - **Projects**: drafts are saved automatically; save multiple versions, undo and redo, and pick up where you left off.
+
+**Negative Film grain**
+
+Turns on the grain item in Negative Film's detail settings; you choose the strength in the camera menu. Built-in Negative Film only. The grain is fine: hard to see on the camera screen at full view, clear when zoomed in.
 
 **Shutdown screen**
 
-Upload a picture; it is cropped to 3:2 and converted to a format the camera can read, and the camera shows it when you switch off (except the collaboration style). Only the existing shutdown-image slot in the firmware is replaced; nothing is enlarged. It can be built into the same file as icons and preset names and flashed in one go (this combination has been tested on hardware too).
+Upload a picture; it is cropped to 3:2 and converted to a format the camera can read, and the camera shows it when you switch off (except the collaboration style). Only the existing shutdown-image slot in the firmware is replaced; nothing is enlarged. It can be built into the same file as icons and preset names and flashed in one go (this combination has also been tested on hardware).
 
 ![Shutdown screen](docs/images/shutdown.png)
 
@@ -58,7 +64,7 @@ Upload a picture; it is cropped to 3:2 and converted to a format the camera can 
 
 - Only the official GR III 2.10 original is accepted; anything else is rejected.
 - Every build starts again from the original, then a separate, independent unpacker takes the result apart and checks it. **Download is offered only if every check passes**, together with a build manifest listing what changed.
-- One more check that does not depend on what you changed: the version is still 2.10, and the boot records and the firmware-update regions identified by the author's analysis are byte-for-byte untouched. This is meant to keep the official original usable for flashing back; it is an offline check, not a guarantee, the recovery path has not been verified step by step on hardware, and a camera that cannot power on at all is not covered.
+- One more check that does not depend on what you changed: the version is still 2.10, and the boot records and the firmware-update regions identified by the author's analysis are byte-for-byte untouched. This is meant to keep the official original usable for flashing back; flashing the official original back has been tested successfully on one GR III; this is still an offline check plus one camera, not a guarantee, and a camera that cannot power on at all is not covered.
 - A built-in recovery guide shows you how to prepare a recovery card before flashing and how to flash back to official firmware if something goes wrong.
 
 The interface is currently in Chinese.

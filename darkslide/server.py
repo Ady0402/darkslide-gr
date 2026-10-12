@@ -96,7 +96,7 @@ class App:
         name = body.get("name")
         if not isinstance(name, str):
             raise ApiError(400, "预设名必须是文字")
-        limit = len(slot["factory_en"])
+        limit = slot.get("name_max", len(slot["factory_en"]))
         return dict(limit=limit, factory_en=slot["factory_en"], checks=names.check_name(name, limit),
                     ok=names.name_ok(name, limit))
 

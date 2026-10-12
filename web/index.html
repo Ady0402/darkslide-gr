@@ -12,7 +12,7 @@
   <div class="grow"></div>
   <button id="cameraChip" class="chip" hidden>
     <span class="cam-mini" aria-hidden="true"><span></span></span>
-    <span class="chip-text"><span id="chipModel">GR III</span><span class="mono dim" id="chipFw">FW 2.10 · OFFICIAL · OK</span></span>
+    <span class="chip-text"><span id="chipModel">GR III</span><span class="dim" id="chipFw">固件 2.10 · 官方原件 · 已核对</span></span>
     <span class="dim small">更换</span>
   </button>
   <button id="btnSettings" class="icon-btn" aria-label="设置" title="设置">
@@ -23,12 +23,12 @@
 <!-- 01 选择机型与固件 -->
 <section id="viewStart" class="view">
   <div class="start">
-    <div class="mono dim small">STEP 1 / 2</div>
+    <div class="dim small">第 1 步，共 2 步</div>
     <h1>选择你的相机</h1>
     <div class="models" id="models"></div>
     <div class="import-row">
       <label class="drop" id="drop">
-        <input type="file" id="fileInput" accept=".bin,.zip" hidden>
+        <input type="file" id="fileInput" hidden>
         <span class="drop-icon" aria-hidden="true">↑</span>
         <span class="drop-text">
           <span>拖入官方固件，或点这里选择</span>
@@ -47,110 +47,172 @@
 <!-- 02 工作台 -->
 <section id="viewWork" class="view" hidden>
   <div class="work">
-    <aside class="features" aria-label="功能">
-      <button class="feature on" id="featIC">影像控制<span class="mono dim">14</span></button>
-      <button class="feature" id="featShutdown">关机画面</button>
-      <button class="feature" disabled>画幅<span class="mono">SOON</span></button>
-      <button class="feature" disabled>日期印记<span class="mono">SOON</span></button>
+    <nav class="rail" aria-label="功能">
+      <button class="rail-item" id="featIC" data-feature="ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v12H4zM8 7l1.5-2h5L16 7M12 16a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/></svg><span>影像控制</span></button>
+      <button class="rail-item" id="featShutdown" data-feature="shutdown"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v8M7 6a7 7 0 1 0 10 0"/></svg><span>关机画面</span></button>
+      <button class="rail-item" id="featRatio" data-feature="ratio" disabled title="开发中，暂时不能打开"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v14h14M3 7h14v14"/></svg><span>画幅</span><span class="rail-tag mono">开发中</span></button>
+      <button class="rail-item" id="featDate" data-feature="date" disabled title="计划中，暂时不能打开"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 7v5l3 2M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z"/></svg><span>日期印记</span><span class="rail-tag mono">计划中</span></button>
       <div class="grow"></div>
-      <a class="side-link" href="#" id="rescueLink">救机说明</a>
-    </aside>
+      <a class="rail-item rail-rescue" href="#" id="rescueLink"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/></svg><span>救机说明</span></a>
+    </nav>
+
+    <nav class="plist" id="plist" aria-label="预设">
+      <div class="plist-head mono">影像控制 · <span id="slotCount">14</span></div>
+      <div id="slots" role="listbox" aria-label="预设"></div>
+    </nav>
 
     <main class="bench" aria-label="操作台">
       <div class="draft-banner" id="templateBanner" hidden></div>
-      <div id="paneIC">
-      <div class="slots" id="slots" role="listbox" aria-label="预设"></div>
-      <div class="editor">
-        <div class="lcd-col">
-          <div class="camera-back">
-            <div class="cb-dial"></div>
-            <div class="cb-btns"><i></i><i></i><i></i></div>
-            <div class="lcd">
-              <div class="lcd-head"><span>影像控制</span><span class="mono" id="lcdCount">01/14</span></div>
-              <div class="lcd-rows"><div class="lcd-bar" id="lcdBar" aria-hidden="true"></div><div id="lcdRows"></div></div>
+
+      <div id="paneIC" class="pane">
+        <section class="pcard" aria-label="预设卡">
+          <span class="pcard-icon" id="pcardIcon" aria-hidden="true"></span>
+          <div class="pcard-main">
+            <div class="pcard-title"><span id="slotTitle"></span><span class="mono dim xsmall" id="slotMeta"></span></div>
+            <div class="chips" id="pcardChips"></div>
+          </div>
+        </section>
+
+        <section class="preview" aria-label="样张预览">
+          <div class="preview-head">
+            <span class="dim small">样张预览</span>
+            <div class="seg-row" id="sceneBtns"></div>
+            <span class="dim2 xsmall preview-tip">点图片放大对比</span>
+            <span class="badge outline mono" id="sampleBadge">仅示意</span>
+            <input type="file" id="sceneInput" accept="image/png,image/jpeg,image/webp" hidden>
+          </div>
+          <div class="sample-grid">
+            <button class="sample" id="sampleBefore" aria-label="放大对比"><span class="sample-tag mono" id="sampleBeforeTag">原厂</span></button>
+            <button class="sample" id="sampleAfter" aria-label="放大对比"><span class="grain-layer" id="sampleGrain"></span><span class="sample-tag on mono" id="sampleAfterTag">当前</span></button>
+          </div>
+        </section>
+
+        <section class="cards" aria-label="编辑">
+          <div class="card" id="iconField">
+            <div class="card-head"><span>图标与预设名</span><span class="badge solid mono" id="lookBadge">可改</span></div>
+            <div class="look-row">
+              <div class="icon-row">
+                <div class="icon-factory" id="iconFactory"></div>
+                <span class="ic-line" aria-hidden="true"></span>
+                <div class="icon-new" id="iconNew"><span>未修改</span></div>
+              </div>
+              <div class="row">
+                <button class="btn sm primary" id="btnUpload">上传图片</button>
+                <button class="btn sm" id="btnFactoryStyle">原厂风格</button>
+                <button class="btn sm ghost" id="btnIconReset">恢复原厂</button>
+                <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" hidden>
+              </div>
+            </div>
+            <div class="hint" id="iconHint">自动裁成 40×40</div>
+            <div id="nameField" class="name-field">
+              <div class="name-box" id="nameBox">
+                <label class="name-label" for="nameInput">预设名</label>
+                <input id="nameInput" autocomplete="off" spellcheck="false">
+                <span class="mono xsmall dim" id="nameCount"></span>
+              </div>
+              <div class="name-foot">
+                <ul class="checks" id="nameChecks"></ul>
+                <button class="link-btn xsmall" id="btnNameReset">恢复原厂预设名</button>
+              </div>
             </div>
           </div>
-          <div class="dim xsmall">机身菜单示意，实际显示以相机为准</div>
-        </div>
-        <div class="edit-col">
-          <div>
-            <div class="mono dim small" id="slotMeta"></div>
-            <h1 id="slotTitle"></h1>
-          </div>
-          <div class="icon-compare">
-            <div class="ic"><div class="icon-factory" id="iconFactory"></div><span class="dim xsmall">原厂</span></div>
-            <div class="ic-line"></div>
-            <div class="ic"><div class="icon-new" id="iconNew"><span>未修改</span></div><span class="dim xsmall">40×40 像素</span></div>
-          </div>
-          <div class="field" id="iconField">
-            <div class="label">图标</div>
-            <div class="row">
-              <button class="btn primary" id="btnUpload">上传图片</button>
-              <button class="btn" id="btnFactoryStyle">原厂风格</button>
-              <button class="btn ghost" id="btnIconReset">恢复原厂</button>
-              <input type="file" id="imageInput" accept="image/png,image/jpeg,image/webp" hidden>
+
+          <div class="card disabled" aria-disabled="true">
+            <div class="card-head"><span>基础效果</span><span class="badge outline mono">研究中</span></div>
+            <div class="seg" role="radiogroup" aria-label="基础效果（研究中）">
+              <button role="radio" aria-checked="true" class="on" disabled>原样</button>
+              <button role="radio" aria-checked="false" disabled>正片</button>
+              <button role="radio" aria-checked="false" disabled>负片</button>
             </div>
-            <div class="hint" id="iconHint">PNG / JPG / WebP，裁成 38×36 可见区，四周透明边按原厂规则保留</div>
+            <div class="hint">改用正片或负片的成像处理。还在研究，暂不参与生成。</div>
           </div>
-          <div class="field" id="nameField">
-            <label class="label" for="nameInput">预设名</label>
-            <div class="name-box" id="nameBox">
-              <input id="nameInput" autocomplete="off" spellcheck="false">
-              <span class="mono xsmall dim" id="nameCount"></span>
-            </div>
-            <ul class="checks" id="nameChecks"></ul>
-            <button class="btn ghost small-btn" id="btnNameReset">恢复原厂预设名</button>
-          </div>
-          <div class="field" id="grainField" hidden>  <!-- 颗粒随 0.3.0 开放；0.2.0 不显示 -->
-            <div class="label">详细设置 · 颗粒</div>
-            <div class="row">
-              <button class="btn" id="btnGrain" aria-pressed="false">开放颗粒项</button>
-              <button class="btn ghost" id="btnGrainReset">恢复原厂</button>
+
+          <div class="card" id="grainField">
+            <div class="card-head"><span>颗粒</span><span class="badge solid mono" id="grainBadge">可改</span></div>
+            <div class="switch-row">
+              <button class="switch" role="switch" aria-checked="false" aria-label="颗粒开关" id="btnGrain"><span></span></button>
+              <span class="small" id="grainLabel">关</span>
             </div>
             <div class="hint" id="grainHint"></div>
           </div>
-          <div class="base-row"><span class="dim">底子</span><span class="dim2">原样 · 以后开放</span></div>
-        </div>
-      </div>
+
+          <div class="card disabled" aria-disabled="true">
+            <div class="card-head"><span>柔光</span><span class="badge outline mono">研究中</span></div>
+            <div class="switch-row">
+              <button class="switch" role="switch" aria-checked="false" aria-label="柔光开关（研究中）" disabled><span></span></button>
+              <span class="small dim">关</span>
+            </div>
+            <div class="hint">类似柔光镜的光晕效果。能不能做、做在哪一层，还需要研究。</div>
+          </div>
+
+          <div class="card wide" id="paramsCard">
+            <div class="card-head">
+              <span>详细设置 · 原厂默认</span>
+              <span class="badge outline mono">相机里调</span>
+            </div>
+            <div class="params" id="paramsGrid"></div>
+            <div class="hint" id="paramsHint"></div>
+          </div>
+        </section>
       </div>
 
-      <div id="paneShutdown" class="sd-pane" hidden>
-        <div>
-          <div class="mono dim small">SHUTDOWN · 720×480</div>
-          <h1 class="sd-title">关机画面</h1>
-        </div>
-        <div class="sd-screens">
-          <figure class="sd-screen"><div class="sd-frame" id="sdFactory"><span class="dim small">导入官方固件后显示</span></div><figcaption class="dim xsmall">原厂</figcaption></figure>
-          <figure class="sd-screen"><div class="sd-frame" id="sdNew"><span class="dim small">未修改</span></div><figcaption class="dim xsmall" id="sdNewCap">新关机图</figcaption></figure>
-        </div>
-        <div class="field">
-          <div class="label">关机图</div>
-          <div class="row">
-            <button class="btn primary" id="btnSdUpload">上传图片</button>
-            <button class="btn ghost" id="btnSdReset">恢复原厂</button>
-            <input type="file" id="sdInput" accept="image/png,image/jpeg,image/webp" hidden>
+      <div id="paneShutdown" class="pane" hidden>
+        <section class="pcard" aria-label="概要">
+          <div class="pcard-main">
+            <div class="pcard-title"><span>关机画面</span></div>
+            <div class="chips"><span class="chip-s">720×480 · 3:2</span><span class="chip-s">自动转成原厂规格</span><span class="chip-s">所有样式共用一张</span></div>
           </div>
-          <div class="hint">PNG / JPG / WebP，裁成 3:2 后压缩到相机能读的 JPEG（720×480），不超过 <span class="mono" id="sdBudget">112,505</span> 字节。</div>
-        </div>
-        <ul class="checks" id="sdNotes"></ul>
+        </section>
+        <section class="preview" aria-label="预览">
+          <div class="preview-head">
+            <span class="dim small">关机时的屏幕</span>
+            <div class="seg-row" role="radiogroup" aria-label="预览方式" id="sdViewBtns">
+              <button role="radio" aria-checked="true" class="on" data-view="camera">机身示意</button>
+              <button role="radio" aria-checked="false" data-view="flat">只看图</button>
+            </div>
+            <span class="dim2 xsmall preview-tip">720 × 480 · 3:2</span>
+          </div>
+          <div class="sample-grid sd-grid">
+            <figure class="sd-fig"><div class="sd-body" data-body><div class="sd-frame" id="sdFactory"><span class="dim small">导入官方固件后显示</span></div></div><figcaption class="dim xsmall">原厂</figcaption></figure>
+            <figure class="sd-fig"><div class="sd-body" data-body><div class="sd-frame" id="sdNew"><span class="dim small">未修改</span></div></div><figcaption class="dim xsmall" id="sdNewCap">新关机图</figcaption></figure>
+          </div>
+        </section>
+        <section class="cards one" aria-label="编辑">
+          <div class="card">
+            <div class="card-head"><span>关机图</span><span class="badge solid mono">可改</span></div>
+            <div class="row">
+              <button class="btn sm primary" id="btnSdUpload">上传图片</button>
+              <button class="btn sm" id="btnSdReset">恢复原厂</button>
+              <input type="file" id="sdInput" accept="image/png,image/jpeg,image/webp" hidden>
+            </div>
+            <div class="hint soft">上传后自动裁成 3:2，拖动可以调整取景范围。尺寸、格式和压缩都按原厂规格自动转换，不用设置。</div>
+          </div>
+          <div class="card notes-card"><ul class="notes" id="sdNotes"></ul></div>
+        </section>
+      </div>
+
+      <div id="paneSoon" class="pane" hidden>
+        <section class="pcard"><div class="pcard-main"><div class="pcard-title"><span id="soonTitle"></span><span class="mono dim xsmall" id="soonSub"></span></div></div><span class="badge outline mono" id="soonBadge"></span></section>
+        <div class="soon-body"><p class="dim" id="soonText"></p></div>
       </div>
     </main>
 
     <aside class="output" aria-label="生成">
       <div class="out-block">
-        <div class="out-head"><span class="mono dim small" id="changeCount">CHANGES · 0</span><span class="dim2 xsmall" id="changeSlots"></span></div>
+        <div class="out-head"><span class="dim small" id="changeCount">本次改动 · 0</span><span class="dim2 xsmall" id="changeSlots"></span></div>
         <div id="changeList" class="change-list"></div>
       </div>
       <div class="out-block bordered">
-        <div class="mono dim small">OUTPUT</div>
+        <div class="dim small">生成信息</div>
         <div class="kv"><span class="dim">版本</span><span class="mono">2.10（不变）</span></div>
-        <div class="kv"><span class="dim">检查</span><span>生成后独立解包，逐字节读回核对</span></div>
+        <div class="kv"><span class="dim">检查</span><span>生成时自动核对</span></div>
+        <div class="kv"><span class="dim">本次生成</span><span id="genCount">0 项</span></div>
         <div class="kv"><span class="dim">模板</span><span id="templateState"></span></div>
       </div>
       <div class="grow"></div>
       <button class="link-btn" id="btnBuilds">生成记录 <span class="mono" id="buildCount">0</span> ›</button>
       <div class="kv small"><input id="projectTitle" class="title-input" aria-label="工程名"><span class="dim" id="saveState"></span></div>
-      <div class="row">
+      <div class="row nowrap">
         <button class="btn grow1" id="btnSave">保存 ⌘S</button>
         <button class="btn primary grow2" id="btnGenerate">生成</button>
       </div>
@@ -161,7 +223,7 @@
 <!-- 03 生成 -->
 <section id="viewDone" class="view" hidden>
   <div class="done">
-    <div class="mono dim small" id="doneTag">RESULT</div>
+    <div class="dim small" id="doneTag">结果</div>
     <h1 id="doneTitle"></h1>
     <p class="dim" id="doneText"></p>
     <dl class="table" id="doneTable"></dl>
@@ -178,9 +240,9 @@
 <!-- 救机说明 -->
 <section id="viewRescue" class="view" hidden>
   <div class="rescue">
-    <div class="mono dim small">RESCUE</div>
+    <div class="dim small">救机</div>
     <h1>救机说明</h1>
-    <p class="dim">刷修改版之前请读完。出问题时，可以尝试用<strong>官方 GR III 2.10 原件</strong>刷回去。本工具生成的文件不会把版本号调高：版本字段保持 2.10。只要机身原本也是 2.10，按代码分析，官方原件在版本比较这一关应当能通过；这一点没有在实机上验证，同版本重装在实机上的表现也还要确认。每一份文件还过了“救机门禁”：引导链记录、RTOS/ICONBIN/RES 以外的记录，以及更新器与开机流程所在的两个代码区域，都和原件逐字节相同，否则不会提供下载。门禁只是这几条已列规则的离线检查，不覆盖其余改动的影响，也不保证刷回一定成功。</p>
+    <p class="dim">刷修改版之前请读完。出问题时，可以尝试用<strong>官方 GR III 2.10 原件</strong>刷回去。本工具生成的文件不会把版本号调高：版本字段保持 2.10。同一版本可以重复更新：已在一台 GR III 上实测，改过的 2.10 可以刷入 2.10 机身，也可以再刷回官方 2.10 原件。每一份文件还过了“救机门禁”：引导链记录、RTOS/ICONBIN/RES 以外的记录，以及更新器与开机流程所在的两个代码区域，都和原件逐字节相同，否则不会提供下载。门禁只是这几条已列规则的离线检查，不覆盖其余改动的影响，也不保证刷回一定成功。</p>
 
     <h2>出问题时怎么判断</h2>
     <dl class="table">
@@ -262,18 +324,31 @@
 
 <!-- 关机图裁切 -->
 <dialog id="sdDialog" class="dialog sd-dialog">
-  <div class="dialog-head"><span>裁切关机图</span><span class="dim small">拖动移动，滚轮或滑杆缩放</span></div>
-  <canvas id="sdCanvas" width="540" height="360" aria-label="裁切区域"></canvas>
+  <div class="dialog-head"><span>调整关机图取景</span><span class="dim small">拖动移动，滚轮或滑杆缩放</span></div>
+  <canvas id="sdCanvas" width="540" height="360" aria-label="取景区域"></canvas>
   <label class="zoom-row"><span class="dim small">缩放</span><input type="range" id="sdZoom" min="1" max="8" step="0.01" value="1"></label>
   <div class="sd-result">
-    <div class="dim xsmall">压缩后效果（相机实际显示的画质）</div>
-    <canvas id="sdPreview" width="360" height="240" aria-label="压缩后预览"></canvas>
-    <div class="mono small" id="sdStat">—</div>
+    <div class="dim xsmall">相机里看到的效果</div>
+    <canvas id="sdPreview" width="360" height="240" aria-label="相机里看到的效果"></canvas>
+    <div class="small" id="sdStat">—</div>
   </div>
   <div class="row end">
     <button class="btn ghost" id="sdCancel">取消</button>
     <button class="btn primary" id="sdApply">使用</button>
   </div>
+</dialog>
+
+<!-- 样张放大对比 -->
+<dialog id="zoomDialog" class="dialog zoom-dialog">
+  <div class="dialog-head"><span id="zoomTitle"></span><button class="btn sm" id="zoomClose">关闭</button></div>
+  <div class="zoom-frame" id="zoomFrame">
+    <div class="zoom-after" id="zoomAfter"><span class="grain-layer" id="zoomGrain"></span></div>
+    <div class="zoom-before" id="zoomBefore"></div>
+    <div class="zoom-divider" id="zoomDivider"></div>
+    <span class="sample-tag mono zl">原厂</span><span class="sample-tag on mono zr">当前</span>
+  </div>
+  <input type="range" id="zoomSplit" min="5" max="95" value="50" aria-label="拖动对比原厂和当前效果">
+  <div class="dim2 xsmall">示意图，不是相机实拍效果。</div>
 </dialog>
 
 <!-- 原厂风格 -->
@@ -315,7 +390,7 @@
 
 <section id="viewQuit" class="view" hidden>
   <div class="done">
-    <div class="mono dim small">STOPPED</div>
+    <div class="dim small">已停止</div>
     <h1>Darkslide 已退出</h1>
     <p class="dim">改动都已保存。现在可以关闭这个浏览器页面。下次使用时重新打开 Darkslide 即可。</p>
   </div>

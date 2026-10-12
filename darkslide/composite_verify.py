@@ -80,6 +80,34 @@ def _container(raw):
     return package_inspect.inspect(raw)
 
 
+def _longer_name_home(p, string):
+    """Where a name longer than the English original goes: among this string's
+    records outside ja/en/zh-TW/zh-CN, the longest one-line text whose bytes no
+    other record reaches (lowest language on a tie). (record offset, text offset,
+    length byte, address) from the read-back module's own view of the tables."""
+    L = p.L
+    reach, mine = [], []
+    for lang in range(21):
+        base = p.u32(L['string_array_ram'] + 4 * lang)
+        for ident in range(1, L['string_ids']):
+            rec = p.u32(base + 4 * ident)
+            if rec == 0:
+                continue
+            at = p.off(rec)
+            size, rows = p.p[at], p.p[at + 1]
+            text = p.u32(rec + 4)
+            reach.append((text, text + 2 * size))
+            if ident == string and lang not in (0, 1, 18, 19) and rows == 1 and p.p[at + 2:at + 4] == b'\0\0':
+                mine.append((size, lang, at, text))
+    mine.sort(key=lambda m: (-m[0], m[1]))
+    for size, lang, at, text in mine:
+        if size >= 2 and [x < text + 2 * size and y > text for x, y in reach].count(True) == 1:
+            t = p.off(text)
+            if p.p[t + 2 * size - 2:t + 2 * size] == b'\0\0':
+                return at, t, size, text
+    return None
+
+
 def verify(official, result, edits, template, jpeg=None):
     """Return checks; failures are closed and do not authorize a download.
 
@@ -118,7 +146,7 @@ Same request signature as build_composite. No modified BIN is read from disk.
             expected[at:end] = data
             spans.append((at, end))
 
-        _need(type(edits) is list and len(edits) <= 7 and (edits or jpeg is not None), 'request')
+        _need(type(edits) is list and len(edits) <= 24 and (edits or jpeg is not None), 'request')
         _need(type(template) is dict and template.get('reviewed') is True and
               template.get('model') == 'GR III' and template.get('firmware') == '2.10' and
               type(template.get('slots')) is list and len(template['slots']) == 14, 'template')
@@ -127,17 +155,27 @@ Same request signature as build_composite. No modified BIN is read from disk.
             _need(type(edit) is dict, 'edit object')
             no, kind = edit['slot'], edit['kind']
             _need(type(no) is int and 1 <= no <= 14 and type(kind) is str and
-                  kind in ('icon', 'name') and (kind, no) not in seen, 'edit identity')
+                  kind in ('icon', 'name', 'grain_menu') and (kind, no) not in seen, 'edit identity')
             seen.add((kind, no))
             icon, string = IDENTIFIERS[no - 1]
             slot = template['slots'][no - 1]
             _need(type(slot['no']) is int and slot['no'] == no and
                   type(slot['icon_id']) is int and slot['icon_id'] == icon and
                   type(slot['string_id']) is int and slot['string_id'] == string, 'template mapping')
-            if kind == 'icon':
+            if kind == 'grain_menu':
+                _need(set(edit) == {'kind', 'slot', 'mode'} and no == 12 and
+                      type(edit['mode']) is int and edit['mode'] == 22, 'grain scope')
+                row = p.off(0x53B3488C) + 6 * 8
+                start = p.off(0x53B3500C)
+                _need(before[row:row+8] == struct.pack('<II', 0x53B3500C, 9) and
+                      before[start:start+18] == bytes.fromhex('0200020102020203020402050206020d000e') and
+                      before[start+18:start+28] == b'\x00\x00OnStart\x00', 'grain stock layout')
+                write(row+4, struct.pack('<I', 10))
+                write(start+18, b'\x02\x0f')
+            elif kind == 'icon':
                 _need(set(edit) == {'kind', 'slot', 'icon_id', 'pixels'} and
                       type(edit['icon_id']) is int and edit['icon_id'] == icon and
-                      no in (1, 7, 11, 12) and slot['icon'] in ('test', 'open'), 'icon scope')
+                      1 <= no <= 12 and slot['icon'] in ('test', 'open'), 'icon scope')
                 info, native = p.icon_pixels(icon)
                 px = edit['pixels']
                 _need(type(px) is bytes and len(px) == 6400 and len(native) == 6400, 'icon size')
@@ -153,19 +191,33 @@ Same request signature as build_composite. No modified BIN is read from disk.
             else:
                 _need(set(edit) == {'kind', 'slot', 'string_id', 'text'} and
                       type(edit['string_id']) is int and edit['string_id'] == string and
-                      no in (7, 11, 12) and slot['rename'] in ('test', 'open'), 'name scope')
+                      2 <= no <= 12 and slot['rename'] in ('test', 'open'), 'name scope')
                 en, zh = p.string(string, 'en'), p.string(string, 'zh-CN')
                 text = edit['text']
-                _need(type(text) is str and 0 < len(text) <= len(en['text']) and
+                _need(type(text) is str and 0 < len(text) and
                       all(32 <= ord(c) <= 126 for c in text) and text == text.strip(' ') and
                       '  ' not in text and en['text'] == slot['factory_en'], 'name text')
-                capacity = en['length_byte'] * 2
                 value = text.encode('utf-16-le') + b'\0\0'
-                write(en['text_offset'], value + bytes(capacity - len(value)))
-                write(en['record_offset'], bytes((len(text) + 1,)))
-                pointer = before[en['record_offset'] + 4:en['record_offset'] + 8]
-                write(zh['record_offset'], bytes((len(text) + 1, 1, 0, 0)) + pointer)
+                if len(text) <= len(en['text']):
+                    capacity = en['length_byte'] * 2
+                    write(en['text_offset'], value + bytes(capacity - len(value)))
+                    write(en['record_offset'], bytes((len(text) + 1,)))
+                    pointer = before[en['record_offset'] + 4:en['record_offset'] + 8]
+                    write(zh['record_offset'], bytes((len(text) + 1, 1, 0, 0)) + pointer)
+                else:
+                    home = _longer_name_home(p, string)
+                    _need(home is not None and len(value) <= home[2] * 2 and
+                          len(text) <= slot.get('name_max', 0), 'name length')
+                    at, t, size, address = home
+                    write(t, value + bytes(size * 2 - len(value)))
+                    write(at, bytes((len(text) + 1,)))
+                    record = bytes((len(text) + 1, 1, 0, 0)) + struct.pack('<I', address)
+                    write(en['record_offset'], record)
+                    write(zh['record_offset'], record)
         add('icon_name_expected', True)
+        row, start = p.off(0x53B3488C) + 6 * 8, p.off(0x53B3500C)
+        add('grain_menu_expected', after[row:row+8] == expected[row:row+8] and
+            after[start:start+28] == expected[start:start+28])
         q = fwread.Payload(after, pinned=False)
         name_requests = {e['slot']: e for e in edits if e['kind'] == 'name'}
         semantic_ok = True

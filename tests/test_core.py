@@ -117,7 +117,7 @@ class Projects(unittest.TestCase):
 
     def test_draft_keeps_bad_name_but_save_refuses(self):
         pid = self.p["id"]
-        self.store.put_draft(pid, {"7": {"name": "Positive Film Warm"}}, self.t)
+        self.store.put_draft(pid, {"7": {"name": "Positive Film Warmer"}}, self.t)  # 20 > 18
         with self.assertRaises(StoreError):
             self.store.save(pid, self.t)
 

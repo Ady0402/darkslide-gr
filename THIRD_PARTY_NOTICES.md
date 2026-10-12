@@ -1,4 +1,4 @@
-# 第三方材料与参考来源
+# 第三方材料说明
 
 本文件说明 Darkslide 涉及哪些不属于作者的材料，以及它们的权利归属。作者自己编写的内容见 [AUTHOR_STATEMENT.md](AUTHOR_STATEMENT.md)。
 

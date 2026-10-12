@@ -16,7 +16,7 @@ PAYLOAD_SHA = "53da690797f35ad6dc2c429d8ca1d0de8e333c211ed959816813982cd093b703"
 INPUT_SIZE = 30391780
 PAYLOAD_SIZE = 59718388
 VERSION = b"\x02\x0a\x15\x1b"
-SOURCE_SHA256 = "15bdce57e498710e142f9a77842e4d5485223581c3557c9b8ac9c10456d01625"
+SOURCE_SHA256 = "93cb1c518af94483698734c89cc25ff366b743be3e0e8580331090f482216408"
 MAP = ((358, 4, "Standard"), (548, 268, "Vivid"),
        (354, 269, "Monotone"), (357, 270, "Soft Monotone"),
        (350, 271, "Hard Monotone"), (352, 272, "Hi-Contrast B&W"),
@@ -24,8 +24,8 @@ MAP = ((358, 4, "Standard"), (548, 268, "Vivid"),
        (356, 276, "Retro"), (351, 277, "HDR Tone"),
        (50, 278, "Cross Processing"), (23, 273, "Negative Film"),
        (347, 279, "Custom1"), (348, 280, "Custom2"))
-ICON_SLOTS = frozenset((1, 7, 11, 12))
-NAME_SLOTS = frozenset((7, 11, 12))
+ICON_SLOTS = frozenset(range(1, 13))
+NAME_SLOTS = frozenset(range(2, 13))
 
 
 def _require(condition, message):
@@ -119,8 +119,11 @@ def _template(template):
     for no, item in enumerate(slots, 1):
         icon, string, text = MAP[no - 1]
         required = {"no", "name", "abbr", "mode", "icon_id", "string_id", "factory_en", "icon", "rename"}
-        _require(type(item) is dict and set(item) in (required, required | {"note"}),
+        extra = set(item) - required if type(item) is dict else {None}
+        _require(type(item) is dict and required <= set(item) and extra <= {"note", "name_max"},
                  "模板槽位存在缺失或未知字段")
+        _require("name_max" not in item or (type(item["name_max"]) is int and no in NAME_SLOTS and
+                 len(text) < item["name_max"] <= 12), "模板预设名上限错误")
         _require(all(type(item[k]) is str for k in ("name", "abbr", "factory_en", "icon", "rename"))
                  and ("note" not in item or type(item["note"]) is str), "模板槽位文本类型错误")
         _require(type(item) is dict and all(type(item.get(k)) is int for k in

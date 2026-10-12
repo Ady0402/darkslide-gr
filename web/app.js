@@ -3,7 +3,6 @@
 const $ = (id) => document.getElementById(id);
 const Names = window.DarkslideNames;
 const VIS = { x: 1, y: 2, w: 38, h: 36 };
-const STAGE_TAG = { test: "实验", open: "", later: "稍后", closed: "不可改" };
 
 const state = {
   status: null,
@@ -91,6 +90,9 @@ function renderModels() {
     el("div", { class: "dim small", style: "width:100%", text: m.desc }),
   ])));
 }
+
+// Longest preset name the camera can take for this preset (template name_max, else the original English length).
+const nameMax = (s) => s.name_max || s.factory_en.length;
 
 async function importFile(file) {
   const out = $("importResult");
@@ -257,7 +259,9 @@ function renderAll() {
   renderBanner();
   renderSlots();
   renderEditor();
-  renderLcd();
+  renderPresetCard();
+  renderSamples();
+  renderParams();
   renderChanges();
   renderSaveState();
 }
@@ -272,62 +276,54 @@ function renderBanner() {
 function slotIcon(slot, cls) {
   const edit = state.changes[slot.no];
   const box = el("span", { class: cls, "aria-hidden": "true" });
-  if (edit && edit.icon) box.append(el("img", { src: assetUrl(edit.icon.asset), alt: "" }));
+  if (edit && edit.icon) { box.classList.add("img"); box.append(el("img", { src: assetUrl(edit.icon.asset), alt: "" })); }
   else if (factoryUrl(slot.no)) { box.classList.add("img"); box.append(el("img", { src: factoryUrl(slot.no), alt: "" })); }
   else box.textContent = slot.abbr;
   return box;
 }
 
-function renderSlots() {
-  // Design A: editable slots are solid cards; locked ones recede (grey, faded icon, lock).
-  setTimeout(() => { state.enterSlots = false; }, 0);
-  $("slots").replaceChildren(...state.template.slots.map((s) => {
-    const locked = !editable(s, "icon") && !editable(s, "rename");
-    const changed = !!state.changes[s.no];
-    const what = editable(s, "rename") ? "图标和预设名可改" : editable(s, "icon") ? "仅图标可改" : "暂不开放";
-    return el("button", {
-      class: "slot" + (s.no === state.sel ? " on" : "") + (locked ? " locked" : " open") + (state.enterSlots ? " enter" : ""),
-      style: state.enterSlots ? "animation-delay:" + (s.no - 1) * 20 + "ms" : null,
-      role: "option", "aria-selected": s.no === state.sel ? "true" : "false",
-      "aria-disabled": locked ? "true" : "false", title: s.name + " · " + what,
-      onclick: () => { if (locked) return; state.sel = s.no; renderAll(); },
-    }, [
-      el("span", { class: "top-line" }, [
-        el("span", { class: "mono", text: String(s.no).padStart(2, "0") }),
-        changed ? el("span", { class: "dot" }) : locked ? el("span", { class: "lock", "aria-label": "暂不开放" }) : null,
-      ]),
-      el("span", { class: "name-line" }, [slotIcon(s, "abbr"), el("span", { text: s.name })]),
-    ]);
-  }));
+function refocus(container, before) {
+  // re-rendering replaces the buttons; put focus back on the same item
+  if (before === null) return;
+  const btn = container.children[before];
+  if (btn) btn.focus({ preventScroll: true });
 }
 
-function renderLcd() {
-  const slots = state.template.slots;
-  const i = slots.findIndex((s) => s.no === state.sel);
-  const start = Math.max(0, Math.min(i - 1, slots.length - 4));
-  $("lcdCount").textContent = String(state.sel).padStart(2, "0") + "/" + slots.length;
-  $("lcdRows").replaceChildren(...slots.slice(start, start + 4).map((s) => {
-    const edit = state.changes[s.no] || {};
-    return el("div", { class: "lcd-row" + (s.no === state.sel ? " on" : "") }, [
-      slotIcon(s, "lcd-icon"),
-      el("span", { text: edit.name !== undefined ? edit.name : s.name }),
+function focusedIndex(container) {
+  const i = Array.prototype.indexOf.call(container.children, document.activeElement);
+  return i >= 0 ? i : null;
+}
+
+function renderSlots() {
+  // A vertical preset list. Every preset opens; inside, only what this preset allows is enabled.
+  setTimeout(() => { state.enterSlots = false; }, 0);
+  const hadFocus = focusedIndex($("slots"));
+  $("slotCount").textContent = state.template.slots.length;
+  $("slots").replaceChildren(...state.template.slots.map((s) => {
+    const locked = !editable(s, "icon") && !editable(s, "rename");
+    const edit = state.changes[s.no];
+    const what = editable(s, "rename") ? "图标和预设名可改" : editable(s, "icon") ? "仅图标可改" : "暂不开放";
+    const tag = edit ? "已改" : locked ? "不可改" : editable(s, "rename") ? "可改" : "仅图标";
+    return el("button", {
+      class: "slot open" + (s.no === state.sel ? " on" : "") + (state.enterSlots ? " enter" : ""),
+      style: state.enterSlots ? "animation-delay:" + (s.no - 1) * 20 + "ms" : null,
+      role: "option", "aria-selected": s.no === state.sel ? "true" : "false",
+      title: s.name + " · " + what,
+      onclick: () => { state.sel = s.no; renderAll(); },
+    }, [
+      slotIcon(s, "abbr"),
+      el("span", { class: "slot-name", text: edit && edit.name !== undefined ? edit.name : s.name }),
+      tag ? el("span", { class: "slot-tag", text: tag }) : null,
     ]);
   }));
-  requestAnimationFrame(() => {
-    const on = $("lcdRows").querySelector(".lcd-row.on");
-    const bar = $("lcdBar");
-    if (!on) { bar.style.opacity = "0"; return; }
-    bar.style.opacity = "1";
-    bar.style.transform = "translateY(" + on.offsetTop + "px)";
-    bar.style.height = on.offsetHeight + "px";
-  });
+  refocus($("slots"), hadFocus);
 }
 
 function renderEditor() {
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
-  $("slotMeta").textContent = String(s.no).padStart(2, "0") + " · MODE " + s.mode + " · ICON " + s.icon_id + " · STR " + s.string_id;
-  $("slotTitle").textContent = s.name;
+  $("slotMeta").textContent = String(s.no).padStart(2, "0") + " · 原 " + s.name;
+  $("slotTitle").textContent = edit.name !== undefined ? edit.name : s.name;
   if (factoryUrl(s.no)) $("iconFactory").replaceChildren(el("img", { src: factoryUrl(s.no), alt: s.name + " 原厂图标" }));
   else $("iconFactory").textContent = s.abbr;
   const iconNew = $("iconNew");
@@ -345,14 +341,16 @@ function renderEditor() {
   for (const id of ["btnUpload", "btnFactoryStyle", "btnIconReset"]) $(id).disabled = !iconOpen;
   $("btnIconReset").disabled = !iconOpen || !edit.icon;
   $("iconHint").textContent = iconOpen
-    ? "PNG / JPG / WebP，裁成 38×36 可见区，四周透明边按原厂规则保留"
+    ? "自动裁成 40×40"
     : "这个预设的图标" + (s.icon === "closed" ? "不开放编辑" : "稍后开放");
+  $("lookBadge").hidden = !iconOpen && !editable(s, "rename");
 
   const nameOpen = editable(s, "rename");
-  const limit = s.factory_en.length;
+  const limit = nameMax(s);
   const input = $("nameInput");
   $("nameField").classList.toggle("locked", !nameOpen);
   input.disabled = !nameOpen;
+  input.maxLength = limit; // typing and paste stop at the limit
   input.placeholder = s.factory_en;
   const value = edit.name !== undefined ? edit.name : s.factory_en;
   if (document.activeElement !== input) input.value = value;
@@ -361,10 +359,12 @@ function renderEditor() {
   const ok = checks.every((c) => c.ok);
   $("nameBox").classList.toggle("bad", nameOpen && !ok);
   $("nameCount").textContent = nameOpen ? value.length + " / " + limit : "";
-  const items = checks.map((c) => el("li", { class: c.ok ? "" : "bad" }, [el("span", { class: "mk", text: c.ok ? "✓" : "✕" }), el("span", { text: c.message })]));
-  if (nameOpen) {
-    items.push(el("li", { class: "info" }, [el("span", { class: "mk", text: "i" }), el("span", { text: "原厂英文名 " + s.factory_en + "；英文和简体中文菜单显示新预设名，其他 19 种语言保持原厂" })]));
-  } else {
+  // Compact card: list only failed rules; one line when everything passes.
+  const failed = checks.filter((c) => !c.ok);
+  const items = failed.map((c) => el("li", { class: "bad" }, [el("span", { class: "mk", text: "✕" }), el("span", { text: c.message })]));
+  if (nameOpen && !failed.length) items.push(el("li", {}, [el("span", { class: "mk", text: "✓" }), el("span", { text: "预设名检查通过（" + checks.length + " 项）" })]));
+  $("nameBox").title = nameOpen ? "原厂英文名 " + s.factory_en + "。英文和简体中文菜单显示新预设名，其他语言保持原厂；超过 " + s.factory_en.length + " 个字符时，另有一种不常用的语言也会显示新预设名。" : "";
+  if (!nameOpen) {
     items.push(el("li", { class: "info" }, [el("span", { class: "mk", text: "i" }), el("span", { text: "这个预设的预设名" + (s.rename === "closed" ? "暂不开放" : "稍后开放") + (s.note ? "：" + s.note : "") })]));
   }
   $("nameChecks").replaceChildren(...items);
@@ -375,15 +375,15 @@ function renderEditor() {
   const grainOn = edit.grain === true;
   $("grainField").classList.toggle("locked", !grainOpen);
   $("btnGrain").disabled = !grainOpen;
-  $("btnGrain").setAttribute("aria-pressed", grainOn ? "true" : "false");
-  $("btnGrain").classList.toggle("primary", grainOn);
-  $("btnGrain").textContent = grainOn ? "已开放颗粒项" : "开放颗粒项";
-  $("btnGrainReset").disabled = !grainOpen || !grainOn;
+  $("btnGrain").setAttribute("aria-checked", grainOn ? "true" : "false");
+  $("grainLabel").textContent = grainStage === "factory" ? "原厂已有" : grainOn ? "开 · 强度在相机里调" : "关";
+  $("grainBadge").textContent = grainStage === "factory" ? "原厂已有" : grainOpen ? "可改" : "研究中";
+  $("grainBadge").className = "badge mono " + (grainOpen && grainStage !== "factory" ? "solid" : "outline");
   $("grainHint").textContent = grainStage === "factory"
-    ? "这个预设的相机菜单本来就有颗粒和色调"
+    ? "这个预设的相机菜单本来就有颗粒（详细设置里调）。"
     : grainOpen
-      ? ((detail.grain_note || {})[String(s.no)] || "开放后在相机「详细设置」里出现颗粒项，档位在相机里调") + "。实验功能：写入核心待交付"
-      : "这个预设的固件里没有颗粒设置，暂不能开放；色调同样在调研中";
+      ? "开放负片的颗粒菜单项，可与图标、预设名、关机图一起生成。关 / 低 / 中 / 高档位在相机里调。颗粒很细，相机屏幕上看整张图不明显，放大或在电脑上看 100% 才看得清。"
+      : "只有负片能开；其他预设加颗粒还在研究。";
 }
 
 function renderChanges() {
@@ -400,13 +400,13 @@ function renderChanges() {
     }
     if (edit.grain === true) {
       rows.push(el("div", { class: "change", "data-key": s.no + "g" }, [
-        el("span", { class: "thumb", text: "▦" }),
-        el("span", { class: "txt" }, [el("span", { text: s.name + " 颗粒项" }), el("span", { text: "→ 开放 · 档位在相机里调 · 实验" })]),
+        el("span", { class: "thumb", text: "粒" }),
+        el("span", { class: "txt" }, [el("span", { text: s.name + " 颗粒项" }), el("span", { text: "→ 开放 · 档位在相机里调" })]),
         el("button", { "aria-label": "撤销 " + s.name + " 颗粒项改动", text: "×", onclick: (e) => leaveThen(e, () => setEdit(s.no, "grain", undefined)) }),
       ]));
     }
     if (edit.name !== undefined) {
-      const ok = Names.ok(edit.name, s.factory_en.length);
+      const ok = Names.ok(edit.name, nameMax(s));
       rows.push(el("div", { class: "change", "data-key": s.no + "n" }, [
         el("span", { class: "thumb", text: "Aa" }),
         el("span", { class: "txt" }, [el("span", { text: s.name + " 预设名" + (ok ? "" : " · 未通过检查") }), el("span", { text: "→ " + edit.name })]),
@@ -417,8 +417,8 @@ function renderChanges() {
   const sd = state.changes.shutdown;
   if (sd) {
     rows.unshift(el("div", { class: "change", "data-key": "shutdown" }, [
-      el("span", { class: "thumb" }, el("img", { src: assetUrl(sd.asset), alt: "", style: "object-fit:cover;image-rendering:auto" })),
-      el("span", { class: "txt" }, [el("span", { text: "关机画面" }), el("span", { text: "→ 自定义图片 · " + (sd.bytes || 0).toLocaleString() + " 字节" })]),
+      el("span", { class: "thumb wide" }, el("img", { src: assetUrl(sd.asset), alt: "" })),
+      el("span", { class: "txt" }, [el("span", { text: "关机画面" }), el("span", { text: "→ 自定义图片" })]),
       el("button", { "aria-label": "撤销关机画面改动", text: "×", onclick: (e) => leaveThen(e, () => setShutdown(undefined)) }),
     ]));
   }
@@ -426,10 +426,11 @@ function renderChanges() {
   for (const r of rows) if (known && !known.has(r.dataset.key)) r.classList.add("enter");
   state.knownRows = new Set(rows.map((r) => r.dataset.key));
   const n = rows.length;
-  $("changeCount").textContent = "CHANGES · " + n;
+  $("changeCount").textContent = "本次改动 · " + n;
+  $("genCount").textContent = rows.filter((r) => !r.classList.contains("pending")).length + " 项";
   const np = presetKeys().length;
   $("changeSlots").textContent = [np ? np + " 个预设" : "", sd ? "关机画面" : ""].filter(Boolean).join(" · ");
-  $("changeList").replaceChildren(...(rows.length ? rows : [el("div", { class: "empty", text: state.feature === "shutdown" ? "还没有改动。上传一张图片做关机画面。" : "还没有改动。选一个预设，换图标或改预设名。" })]));
+  $("changeList").replaceChildren(...(rows.length ? rows : [el("div", { class: "empty", text: "还没有改动" })]));
 }
 
 function leaveThen(e, fn) {
@@ -461,7 +462,7 @@ function onNameInput() {
     state.changes[s.no] = Object.assign({}, state.changes[s.no], { name: v });
     state.redo = [];
     scheduleDraft();
-    renderSlots(); renderEditor(); renderLcd(); renderChanges();
+    renderSlots(); renderEditor(); renderPresetCard(); renderSamples(); renderChanges();
   } else {
     setEdit(s.no, "name", v);
   }
@@ -620,7 +621,7 @@ async function applyFactory() {
 async function generate() {
   const bad = state.template.slots.filter((s) => {
     const e = state.changes[s.no];
-    return e && e.name !== undefined && !Names.ok(e.name, s.factory_en.length);
+    return e && e.name !== undefined && !Names.ok(e.name, nameMax(s));
   });
   if (bad.length) { toast(bad.map((s) => s.name).join("、") + " 的预设名没有通过检查", true); return; }
   if (!Object.keys(state.changes).length) { toast("还没有改动", true); return; }
@@ -639,7 +640,7 @@ async function generate() {
 }
 
 function showPending() {
-  $("doneTag").textContent = "WORKING";
+  $("doneTag").textContent = "正在生成";
   $("doneTitle").textContent = "正在生成并核对…";
   $("doneText").textContent = "从官方原件重新生成，然后用另一套代码拆开读回、逐项核对。大约需要十几秒。";
   $("doneTable").replaceChildren();
@@ -649,14 +650,13 @@ function showPending() {
 }
 
 function showResult(ok, data) {
-  $("doneTag").textContent = ok ? "DONE" : "NOT YET";
+  $("doneTag").textContent = ok ? "完成" : "未完成";
   $("doneTitle").textContent = ok ? "固件已生成" : "还不能生成";
   $("doneText").textContent = ok ? "全部核对通过。下面是这次生成的明细。" : data.error;
   const rows = ok
     ? [["工程", data.project_title], ["改动", data.summary.map((x) => x.preset + " " + x.what + " → " + x.value).join("；")],
        ["版本", "2.10（不变）"], ["SHA-256", data.output_sha256],
-       ["验证", data.feature === "composite" ? "离线核对通过 · 同类组合已在一台 GR III 上实测"
-               : data.feature === "shutdown" ? "离线核对通过 · 已在一台 GR III 上实测" : "离线核对通过"]]
+       ["验证", "离线核对通过"]]
     : [["工程", state.project.title], ["模板", state.template.reviewed ? state.template.model + " " + state.template.firmware : "不可用"]];
   $("doneTable").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { class: k === "SHA-256" ? "mono sha" : "", text: v })]));
   $("doneChecks").replaceChildren(...(data.checks || []).map((c) => el("li", { class: c.ok ? "" : "bad" }, [
@@ -673,24 +673,137 @@ function showResult(ok, data) {
 // ---------------------------------------------------------------- shutdown image
 const presetKeys = () => Object.keys(state.changes).filter((k) => k !== "shutdown");
 const SD = { w: 720, h: 480 };
+let sdView = "camera";
 const sd = { img: null, scale: 1, base: 1, ox: 0, oy: 0, drag: null, result: null, timer: null, seq: 0 };
 
 function setShutdown(value) {
   mutate((c) => { if (value === undefined) delete c.shutdown; else c.shutdown = value; });
 }
 
+const SOON = {
+  ratio: ["画幅", "", "开发中", "正在研究怎么在 GR III 上新增画幅比例，还不能用。原厂的 3:2、4:3、1:1、16:9 请在相机里选，这里暂时没有可改的内容。"],
+  date: ["日期印记", "", "计划中", "机内能不能在照片上印日期还没有研究，这里暂时没有可改的内容。"],
+};
+
 function renderFeature() {
-  const isSd = state.feature === "shutdown";
-  $("featIC").classList.toggle("on", !isSd);
-  $("featShutdown").classList.toggle("on", isSd);
-  $("paneIC").hidden = isSd;
-  $("paneShutdown").hidden = !isSd;
+  const f = state.feature;
+  for (const [id, key] of [["featIC", "ic"], ["featShutdown", "shutdown"], ["featRatio", "ratio"], ["featDate", "date"]]) {
+    $(id).classList.toggle("on", f === key);
+    if (f === key) $(id).setAttribute("aria-current", "page"); else $(id).removeAttribute("aria-current");
+  }
+  $("plist").hidden = f !== "ic";
+  $("paneIC").hidden = f !== "ic";
+  $("paneShutdown").hidden = f !== "shutdown";
+  $("paneSoon").hidden = !SOON[f];
+  if (SOON[f]) {
+    const [title, sub, badge, text] = SOON[f];
+    $("soonTitle").textContent = title;
+    $("soonSub").textContent = sub;
+    $("soonBadge").textContent = badge;
+    $("soonText").textContent = text;
+  }
+}
+
+// ---------------------------------------------------------------- preset card, samples, nine params
+function renderPresetCard() {
+  if (state.feature !== "ic") return;
+  const s = slotOf(state.sel);
+  const edit = state.changes[s.no] || {};
+  const icon = $("pcardIcon");
+  icon.className = "pcard-icon";
+  if (edit.icon) icon.replaceChildren(el("img", { src: assetUrl(edit.icon.asset), alt: "" }));
+  else if (factoryUrl(s.no)) { icon.classList.add("img"); icon.replaceChildren(el("img", { src: factoryUrl(s.no), alt: "" })); }
+  else icon.textContent = s.abbr;
+  const grainStage = ((state.status.detail || {}).grain || {})[String(s.no)] || "closed";
+  const grain = grainStage === "factory" ? "颗粒 · 原厂已有" : "颗粒 " + (edit.grain === true ? "开" : "关");
+  $("pcardChips").replaceChildren(...["原厂效果", grain, "柔光 关", "详细设置 · 相机里调"].map((t) => el("span", { class: "chip-s", text: t })));
+}
+
+// Placeholder scenes until real samples are shot: both sides use the same
+// picture, only the grain overlay differs, and the badge says 仅示意.
+const SCENES = [
+  ["街景", "linear-gradient(135deg,#5B4A7A,#C46A3A 55%,#E8C25A)"],
+  ["静物", "linear-gradient(160deg,#2F5B4A,#7EA36A 50%,#D9D2B0)"],
+  ["夜景", "linear-gradient(180deg,#0E1424,#28305A 50%,#C9823A)"],
+];
+const samples = { scene: 0, mine: null };
+
+function sceneBackground() {
+  return samples.scene === 3 && samples.mine ? 'url("' + samples.mine + '")' : SCENES[Math.min(samples.scene, 2)][1];
+}
+
+function renderSamples() {
+  if (state.feature !== "ic") return;
+  const names = SCENES.map((x) => x[0]).concat(["＋ 我的照片"]);
+  const hadFocus = focusedIndex($("sceneBtns"));
+  $("sceneBtns").replaceChildren(...names.map((label, i) => el("button", {
+    class: (samples.scene === i ? "on" : "") + (i === 3 ? " add" : ""), text: i === 3 && samples.mine ? "我的照片" : label,
+    "aria-pressed": samples.scene === i ? "true" : "false",
+    onclick: () => { if (i === 3 && !samples.mine) { $("sceneInput").click(); return; } samples.scene = i; renderSamples(); },
+  })));
+  refocus($("sceneBtns"), hadFocus);
+  const s = slotOf(state.sel);
+  const edit = state.changes[s.no] || {};
+  const bg = sceneBackground() + " center / cover no-repeat";
+  $("sampleBefore").style.background = bg;
+  $("sampleAfter").style.background = bg;
+  $("sampleBeforeTag").textContent = "原厂 · " + s.name;
+  $("sampleAfterTag").textContent = "当前 · " + (edit.name !== undefined ? edit.name : s.name);
+  $("sampleGrain").classList.toggle("on", edit.grain === true);
+}
+
+function openZoom() {
+  const s = slotOf(state.sel);
+  const edit = state.changes[s.no] || {};
+  const bg = sceneBackground() + " center / cover no-repeat";
+  $("zoomTitle").textContent = (edit.name !== undefined ? edit.name : s.name) + " · " + (samples.scene === 3 ? "我的照片" : SCENES[samples.scene][0]);
+  $("zoomAfter").style.background = bg;
+  $("zoomBefore").style.background = bg;
+  $("zoomGrain").classList.toggle("on", edit.grain === true);
+  $("zoomDialog").showModal();
+  setSplit(50);
+}
+
+function setSplit(v) {
+  $("zoomSplit").value = String(v);
+  $("zoomBefore").style.clipPath = "inset(0 " + (100 - v) + "% 0 0)";
+  $("zoomDivider").style.left = "calc(" + v + "% - 1px)";
+}
+
+// Factory defaults of the camera's detail settings, per preset (display only; never written to firmware).
+// Data: templates/<template>.detail.json → factory_params. A null value means "not verified yet".
+const PARAM_NAMES = ["饱和度", "色相", "高/低调", "对比度", "高光对比", "阴影对比", "锐度", "暗角", "清晰度"];
+
+function renderParams() {
+  if (state.feature !== "ic") return;
+  const s = slotOf(state.sel);
+  const fp = ((state.status.detail || {}).factory_params || {});
+  const entry = (fp.slots || {})[String(s.no)];
+  const items = entry ? entry.items : PARAM_NAMES.map((name) => [name, null]);
+  $("paramsGrid").style.setProperty("--rows", String(Math.ceil(items.length / 2)));
+  $("paramsGrid").replaceChildren(...items.map(([name, value]) => {
+    // number = a -4..+4 slider; text = an option (关 / B / 标准 …); null = not verified yet
+    const num = typeof value === "number";
+    const missing = value === null || value === undefined;
+    return el("div", { class: "param" + (num ? "" : missing ? " unknown" : " option") }, [
+      el("span", { class: "pn", text: name }),
+      el("span", { class: "pt" }, num ? el("span", { class: "pk", style: "left:calc(" + ((value + 4) / 8 * 100) + "% - 5px)" }) : null),
+      el("span", { class: "pv", text: missing ? "—" : num ? (value > 0 ? "+" : "") + value : value }),
+    ]);
+  }));
+  const pending = items.some(([, v]) => v === null || v === undefined);
+  $("paramsHint").textContent = (entry && entry.note ? entry.note + " " : "") +
+    (pending ? "标「—」的原厂值还没核实。" : "") + "这里只显示，在相机菜单里自己调，不写进固件。";
 }
 
 function renderShutdown() {
   if (state.feature !== "shutdown") return;
-  const budget = (state.status.shutdown || {}).budget || 112505;
-  $("sdBudget").textContent = budget.toLocaleString();
+  for (const b of document.querySelectorAll("#paneShutdown [data-body]")) b.classList.toggle("camera", sdView === "camera");
+  for (const b of $("sdViewBtns").children) {
+    const on = b.dataset.view === sdView;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-checked", on ? "true" : "false");
+  }
   const fac = $("sdFactory");
   const facUrl = state.project ? "/api/factory/" + state.project.input_sha256 + "/shutdown.jpg" : null;
   if (facUrl && fac.dataset.src !== facUrl) {
@@ -701,17 +814,17 @@ function renderShutdown() {
   if (edit) {
     const cur = $("sdNew").querySelector("img");
     if (!cur || !cur.src.endsWith(edit.asset)) $("sdNew").replaceChildren(el("img", { src: assetUrl(edit.asset), alt: "新关机画面" }));
-    $("sdNewCap").textContent = "新关机图 · " + (edit.bytes || 0).toLocaleString() + " 字节 · 质量 " + (edit.quality || "?");
+    $("sdNewCap").textContent = "新关机图";
   } else {
     $("sdNew").replaceChildren(el("span", { class: "dim small", text: "未修改" }));
     $("sdNewCap").textContent = "新关机图";
   }
   $("btnSdReset").disabled = !edit;
-  const note = (t) => el("li", { class: "info" }, [el("span", { class: "mk", text: "i" }), el("span", { text: t })]);
+  const note = (t) => el("li", {}, [el("span", { class: "mk", text: "i" }), el("span", { text: t })]);
   $("sdNotes").replaceChildren(
-    note("普通、ING、Urban、Diary 四种关机画面共用这一张图；合作款（Collabo）保持原厂。"),
-    note("不扩容：图片写进固件里原有的 Diary 关机图位置，并把它从 B 盘改到 A 盘（刷机时只会更新 A 盘）；其他资源不动。"),
-    note("已在一台 GR III 上实测成功：单独改关机画面，以及和图标、预设名一起改。"),
+    note("相机里不管选哪种关机画面样式，关机时都显示这一张（合作款除外）。"),
+    note("不扩容：写进固件里原有的关机图位置，其他资源不动。"),
+    note("单独改关机画面，或者和图标、预设名、负片颗粒一起改，都已在一台 GR III 上实测成功。"),
     note("可以和图标、预设名一起生成，一次刷机全部生效。"),
   );
 }
@@ -734,7 +847,7 @@ function sdRender() {
   g.imageSmoothingQuality = "high";
   g.drawImage(sd.img, sd.ox, sd.oy, sd.img.naturalWidth * sd.scale, sd.img.naturalHeight * sd.scale);
   clearTimeout(sd.timer);
-  $("sdStat").textContent = "正在压缩…";
+  $("sdStat").textContent = "正在转换…";
   $("sdApply").disabled = true;
   sd.timer = setTimeout(sdEncode, 250);
 }
@@ -766,7 +879,7 @@ async function sdEncode() {
   const px = sdPixels();
   const fit = window.DarkslideJpeg.fit(px.data, SD.w, SD.h, budget, 95);
   if (seq !== sd.seq) return;
-  if (!fit) { sd.result = null; $("sdStat").textContent = "这张图压不进 " + budget.toLocaleString() + " 字节"; return; }
+  if (!fit) { sd.result = null; $("sdStat").textContent = "这张图细节太多，放不进原厂关机图的空间，请换一张"; return; }
   const blob = new Blob([fit.data], { type: "image/jpeg" });
   let bmp;
   try { bmp = await createImageBitmap(blob); } catch (e) { sd.result = null; $("sdStat").textContent = "压缩结果无法解码，不能使用"; return; }
@@ -777,7 +890,7 @@ async function sdEncode() {
   g.drawImage(bmp, 0, 0, pv.width, pv.height);
   sd.result = { blob, quality: fit.quality, bytes: fit.data.length, source: px.canvas };
   const word = fit.quality >= 80 ? "画质很好" : fit.quality >= 50 ? "画质良好" : fit.quality >= 25 ? "画质一般，细节会变软" : "画质较差，建议换一张细节少的图";
-  $("sdStat").textContent = fit.data.length.toLocaleString() + " / " + budget.toLocaleString() + " 字节 · 质量 " + fit.quality + " · " + word;
+  $("sdStat").textContent = word;
   $("sdApply").disabled = false;
 }
 
@@ -821,8 +934,22 @@ async function applyShutdown() {
 }
 
 function wireShutdown() {
-  $("featIC").addEventListener("click", () => { state.feature = "ic"; renderAll(); });
-  $("featShutdown").addEventListener("click", () => { state.feature = "shutdown"; renderAll(); });
+  for (const [id, key] of [["featIC", "ic"], ["featShutdown", "shutdown"], ["featRatio", "ratio"], ["featDate", "date"]]) {
+    $(id).addEventListener("click", () => { state.feature = key; renderAll(); });
+  }
+  for (const b of $("sdViewBtns").children) b.addEventListener("click", () => { sdView = b.dataset.view; renderShutdown(); });
+  $("sampleBefore").addEventListener("click", openZoom);
+  $("sampleAfter").addEventListener("click", openZoom);
+  $("zoomClose").addEventListener("click", () => $("zoomDialog").close());
+  $("zoomSplit").addEventListener("input", (e) => setSplit(Number(e.target.value)));
+  $("sceneInput").addEventListener("change", (e) => {
+    const f = e.target.files[0]; e.target.value = "";
+    if (!f) return;
+    if (samples.mine) URL.revokeObjectURL(samples.mine);
+    samples.mine = URL.createObjectURL(f);   // stays in this browser tab; never uploaded
+    samples.scene = 3;
+    renderSamples();
+  });
   $("btnSdUpload").addEventListener("click", () => $("sdInput").click());
   $("sdInput").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) startShutdownCrop(f); });
   $("btnSdReset").addEventListener("click", () => setShutdown(undefined));
@@ -865,7 +992,6 @@ function wire() {
     const on = (state.changes[state.sel] || {}).grain === true;
     setEdit(state.sel, "grain", on ? undefined : true);
   });
-  $("btnGrainReset").addEventListener("click", () => setEdit(state.sel, "grain", undefined));
   $("btnUpload").addEventListener("click", () => $("imageInput").click());
   $("imageInput").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) startCrop(f); });
   $("btnIconReset").addEventListener("click", () => setEdit(state.sel, "icon", undefined));
@@ -931,6 +1057,7 @@ function wire() {
     for (const k of ["guide_off", "guide_start_seen", "guide_work_seen"]) await setPref(k, false);
     $("settingsDialog").close();
     toast("指引已重新打开");
+    if (!$("viewWork").hidden && state.feature !== "ic") { state.feature = "ic"; renderAll(); }
     maybeGuide($("viewWork").hidden ? "start" : "work");
   });
   $("btnQuit").addEventListener("click", quitApp);

@@ -1,5 +1,5 @@
 """Compose reviewed edits on one official payload and pack exactly once."""
-from . import edit_core as builder, a_shutdown
+from . import edit_core as builder, a_shutdown, grain_menu
 
 class CompositeError(ValueError):
     pass
@@ -33,17 +33,29 @@ def _merge_delta(before, merged, declared, ranges, changed, changes):
 def build_composite(official, edits, template, jpeg=None):
     try:
         builder._template(template)
-        builder._require(type(edits) is list and len(edits) <= 7 and
+        builder._require(type(edits) is list and len(edits) <= 24 and
                          (bool(edits) or jpeg is not None), 'no requested changes')
-        if edits:
-            builder._validate_edits(edits, template)
+        regular, grains = [], []
+        for edit in edits:
+            builder._require(type(edit) is dict, 'edit object')
+            if edit.get('kind') == 'grain_menu':
+                grain_menu.validate_request(edit)
+                grains.append(edit)
+            else:
+                regular.append(edit)
+        builder._require(len(grains) <= 1, 'duplicate grain menu edit')
+        if regular:
+            builder._validate_edits(regular, template)
         builder._require(type(official) is bytes and len(official) == builder.INPUT_SIZE and
                          builder._sha(official) == builder.INPUT_SHA, 'fixed official input required')
         before, frames, stop, footer = builder._decode(official)
         builder._require(builder._sha(before) == builder.PAYLOAD_SHA, 'official payload identity')
         merged, declared, ranges = bytearray(before), [], []
-        if edits:
-            changed, changes = builder.apply_edits(before, edits, template)
+        if regular:
+            changed, changes = builder.apply_edits(before, regular, template)
+            _merge_delta(before, merged, declared, ranges, changed, changes)
+        if grains:
+            changed, changes = grain_menu.apply(before)
             _merge_delta(before, merged, declared, ranges, changed, changes)
         shutdown = None
         if jpeg is not None:
@@ -52,7 +64,7 @@ def build_composite(official, edits, template, jpeg=None):
         builder._require(declared, 'no actual payload changes')
         result = builder._pack_payload(official, before, frames, stop, footer, bytes(merged), declared)
         result.update(features=sorted({e['kind'] for e in edits} | ({'shutdown'} if jpeg is not None else set())),
-                      shutdown=shutdown, compositor='Darkslide one-payload compositor v01',
+                      shutdown=shutdown, compositor='Darkslide one-payload compositor v02 (negative grain)',
                       candidate_file_written=False, camera_verified=False, exportable=False,
                       device_installation_verified=False,
                       independent_entropy_decode_required=jpeg is not None)

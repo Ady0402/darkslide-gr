@@ -120,7 +120,7 @@ def gate(official, output):
     try:
         _need(type(official) is bytes and type(output) is bytes and len(output) >= 0x80, "inputs")
         words = [output[o:o + 4] for o in VERSION_OFFSETS]
-        add("rescue_version", "版本字段仍是 2.10（02 0A 15 1B）：按代码分析，官方 2.10 包不会因版本更旧被拒（未实机验证）",
+        add("rescue_version", "版本字段仍是 2.10（02 0A 15 1B）：按代码分析，官方 2.10 包不会因版本更旧被拒（同版本刷回已在一台 GR III 上实测）",
             all(w == VERSION_WORD for w in words) and
             all(official[o:o + 4] == VERSION_WORD for o in VERSION_OFFSETS),
             " / ".join(w.hex() for w in words))

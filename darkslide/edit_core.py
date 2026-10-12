@@ -12,12 +12,12 @@ PAYLOAD_SHA, PAYLOAD_SIZE = codec.PAYLOAD_SHA, codec.PAYLOAD_SIZE
 _template, _require, _sha = codec._template, codec._require, codec._sha
 _icon, _string = codec._icon, codec._string
 _sum, _literal, _decode = codec._sum, codec._literal, codec._decode
-SOURCE_SHA256 = "fbba00d890f714f2b3a3a7c1c788efacc8c29a8ad6d4fdbf2a574140d5b1468a"
+SOURCE_SHA256 = "87df37f6f3c8f7933fb2072d246a6cda7f627b251bd7d8ce54099a1bc58bef4f"
 
 
 def _validate_edits(edits, template):
     slots = _template(template)
-    _require(type(edits) is list and 0 < len(edits) <= 7, "1 to 7 edits required")
+    _require(type(edits) is list and 0 < len(edits) <= 23, "1 to 23 edits required")
     seen = set()
     for edit in edits:
         _require(type(edit) is dict, "改动必须为对象")
@@ -37,11 +37,42 @@ def _validate_edits(edits, template):
             _require(all(a in (0, 255) for a in edit["pixels"][3::4]), "图标alpha必须为0或255")
         else:
             text = edit["text"]
-            limit = len(slots[no - 1]["factory_en"])
+            limit = slots[no - 1].get("name_max", len(slots[no - 1]["factory_en"]))
             _require(type(text) is str and 0 < len(text) <= limit and
                      all(32 <= ord(c) <= 126 for c in text) and
                      text == text.strip(" ") and "  " not in text, "预设名须为限长可打印ASCII且无多余空格")
     return slots
+
+
+# Languages whose own text never lends its storage to a longer preset name.
+KEEP_LANGUAGES = (0, 1, 18, 19)  # ja, en, zh-TW, zh-CN
+
+
+def _lendable(payload, identifier):
+    """Longest one-line text of this string in another language that no other
+    record (any language, any string) points into. Ties go to the lower language.
+    Returns (record offset, text offset, length byte, address) or None."""
+    spans, own = [], []
+    for language in range(21):
+        table = codec._u32(payload, 0x55002bac + language * 4)
+        for other in range(1, 785):
+            record = codec._u32(payload, table + other * 4)
+            if not record:
+                continue
+            r = codec._off(record, 8)
+            count, lines, zeros = struct.unpack_from("<BBH", payload, r)
+            va = struct.unpack_from("<I", payload, r + 4)[0]
+            spans.append((va, va + count * 2))
+            if other == identifier and language not in KEEP_LANGUAGES and lines == 1 and zeros == 0 and count >= 2:
+                own.append((count, -language, r, va))
+    best = None
+    for count, neg_language, r, va in sorted(own, reverse=True):
+        if sum(1 for a, b in spans if a < va + count * 2 and b > va) == 1:
+            t = codec._off(va, count * 2)
+            if payload[t + (count - 1) * 2:t + count * 2] == b"\0\0":
+                best = (r, t, count, va)
+                break
+    return best
 
 
 def apply_edits(before, edits, template):
@@ -94,12 +125,23 @@ def apply_edits(before, edits, template):
             zh = _string(before, edit["string_id"], 19)
             r, t, count, va, old = en
             _require(old == slots[edit["slot"] - 1]["factory_en"], "原厂英文名与模板不符")
-            _require(0 < len(text) <= len(old) and all(32 <= ord(c) <= 126 for c in text) and
-                     text == text.strip(" ") and "  " not in text, "预设名须为限长可打印ASCII且无多余空格")
+            _require(0 < len(text) and all(32 <= ord(c) <= 126 for c in text) and
+                     text == text.strip(" ") and "  " not in text, "预设名须为可打印ASCII且无多余空格")
             new = text.encode("utf-16-le") + b"\0\0"
-            write(t, new + bytes(count * 2 - len(new)), "name_en_text", edit)
-            write(r, bytes((len(text) + 1,)), "name_en_length", edit)
-            write(zh[0], bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", va), "name_zh_CN_record", edit)
+            if len(text) <= len(old):  # fits the English text's own storage
+                write(t, new + bytes(count * 2 - len(new)), "name_en_text", edit)
+                write(r, bytes((len(text) + 1,)), "name_en_length", edit)
+                write(zh[0], bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", va), "name_zh_CN_record", edit)
+            else:  # longer: use the longest storage only this string uses, in another language
+                lent = _lendable(before, edit["string_id"])
+                _require(lent is not None, "没有可借用的预设名存储")
+                lr, lt, lcount, lva = lent
+                _require(len(text) <= lcount - 1, "预设名超过可用长度")
+                record = bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", lva)
+                write(lt, new + bytes(lcount * 2 - len(new)), "name_lent_text", edit)
+                write(lr, bytes((len(text) + 1,)), "name_lent_length", edit)
+                write(r, record, "name_en_record", edit)
+                write(zh[0], record, "name_zh_CN_record", edit)
     _require(changes, "改动未改变任何字节")
     return bytes(after), changes
 

@@ -62,15 +62,15 @@ class GrainChanges(unittest.TestCase):
         what = [x["what"] for x in generate.summarize(changes, self.t)]
         self.assertEqual(what, ["预设名", "颗粒项"])
 
-    def test_grain_alone_is_not_generated(self):
+    def test_grain_alone_reaches_core(self):
         self.store.put_draft(self.pid, {str(NEGATIVE): {"grain": True}}, self.t)
         self.store.save(self.pid, self.t)
         project = self.store.get_project(self.pid)
         with self.assertRaises(generate.GenerateError) as cm:
             generate.run(self.store, project, self.t, FAKE_OFFICIAL)
-        self.assertIn("暂不参与生成", str(cm.exception))
+        self.assertIn("无法生成", str(cm.exception))
 
-    def test_grain_is_skipped_next_to_other_changes(self):
+    def test_grain_with_other_changes_reaches_core(self):
         self.store.put_draft(self.pid, {str(NEGATIVE): {"grain": True, "name": "Nega Warm"}}, self.t)
         self.store.save(self.pid, self.t)
         project = self.store.get_project(self.pid)

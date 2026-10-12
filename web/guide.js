@@ -15,11 +15,11 @@ window.DarkslideGuide = (function () {
     ],
     work: [
       { target: () => document.getElementById("slots"), title: "选一个预设",
-        text: "格子里是相机的 14 个预设。亮的卡片可以改，暗的、带小锁的暂不开放。" },
-      { target: () => document.querySelector(".edit-col"), title: "换图标、改预设名",
+        text: "左边列表是相机的 14 个预设。亮的可以改，灰的暂不开放。" },
+      { target: () => document.getElementById("iconField"), title: "换图标、改预设名",
         text: "上传图片或用原厂风格做图标；预设名只能用英文，长度不超过原厂名，下面会实时检查。" },
       { target: () => document.getElementById("btnGenerate"), title: "改完点“生成”",
-        text: "可以一次改好几个预设。生成前会跑 7 项检查，全部通过才给你下载。" },
+        text: "可以一次改好几个预设，也可以连关机画面一起改。生成后会自动核对，全部通过才给你下载。" },
     ],
   };
   const TOTAL = FLOWS.start.length + FLOWS.work.length - 1; // card numbering: 1,2 then 3,3,4
@@ -72,7 +72,7 @@ window.DarkslideGuide = (function () {
     if (!el) { next(); return; }
     el.scrollIntoView({ block: "center" });
     const n = NUMBERS[flow][index];
-    card.querySelector(".guide-label").textContent = "GUIDE " + n + " / " + (TOTAL - 0);
+    card.querySelector(".guide-label").textContent = "指引 " + n + " / " + (TOTAL - 0);
     card.querySelector(".guide-num").textContent = String(n).padStart(2, "0");
     card.querySelector(".guide-title").textContent = step.title;
     card.querySelector(".guide-text").textContent = step.text;
