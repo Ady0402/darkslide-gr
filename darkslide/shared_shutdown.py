@@ -1,18 +1,19 @@
 from . import jpeg_profile
 """Offline shared shutdown slot editor. No camera, container export, or disk writes.
 
-All four known shutdown JPEG IDs resolve to the original Diary descriptor.
+All five known shutdown JPEG IDs resolve to the original Diary descriptor.
 User JPEG is independently validated and padded to the original fixed capacity.
 """
 import hashlib
 import struct
+from . import models
 
 PIN = '53da690797f35ad6dc2c429d8ca1d0de8e333c211ed959816813982cd093b703'
 SIZE = 59718388
 TABLE_LMA = 0x5407e0bc
 DIARY_DESC = 0x53b5f508
-TABLE_INDICES = (1, 9, 10, 11)
-REQUEST_IDS = (2, 10, 11, 12)
+TABLE_INDICES = (1, 2, 9, 10, 11)
+REQUEST_IDS = (2, 3, 10, 11, 12)
 EXPECTED_DESCRIPTORS = (0x53b5f520, 0x53b5f540, 0x53b5f550, 0x53b5f530,
                         0x53b5f518, 0x53b5f528, 0x53b5f568, 0x53b5f538,
                         0x53b5f560, 0x53b5f510, 0x53b5f558, DIARY_DESC)
@@ -48,8 +49,9 @@ def pad_jpeg(jpeg, capacity=CAPACITY):
     except jpeg_profile.ProfileError as exc:
         raise SharedSlotError(str(exc)) from exc
 
-def apply_shared(decoded, jpeg=None):
-    need(type(decoded) is bytes and len(decoded) == SIZE and sha(decoded) == PIN,
+def apply_shared(decoded, jpeg=None, model_id=None):
+    model = models.get(model_id)
+    need(type(decoded) is bytes and len(decoded) == SIZE and sha(decoded) == model.payload_sha,
          'immutable official decoded GR III 2.10 required')
     t = off(TABLE_LMA, 48)
     need(struct.unpack_from('<12I', decoded, t) == EXPECTED_DESCRIPTORS, 'original JPEG index table')
@@ -77,7 +79,7 @@ def apply_shared(decoded, jpeg=None):
                               input_jpeg_sha256=sha(jpeg), padded_sha256=sha(padded)))
     need(len(updated) == len(decoded), 'payload expansion')
     return bytes(updated), dict(schema='gr3-shared-shutdown-offline-v1',
-             input_sha256=PIN, output_payload_sha256=sha(updated), edits=edits,
+             input_sha256=model.payload_sha, output_payload_sha256=sha(updated), edits=edits,
              table_indices=list(TABLE_INDICES), request_ids=list(REQUEST_IDS),
              shared_descriptor=DIARY_DESC,
              shared_path='B:\\Resource\\Jpeg\\GB_Diary.jpg', capacity=CAPACITY,

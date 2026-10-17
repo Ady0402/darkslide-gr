@@ -1,0 +1,25 @@
+{
+  "project": "idontknownihil/gr3-film-mods",
+  "url": "https://github.com/idontknownihil/gr3-film-mods",
+  "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+  "license": "MIT",
+  "source_file": "film_cave.py",
+  "source_sha256": "84c8657c0a6ea64d7a8cee87309a9ffd0ca1a1975a449e119379f108202c2af3",
+  "license_file": "GR3_FILM_MODS_LICENSE.txt",
+  "local_file": "gr3_four_curve_hooks.py",
+  "adopted": "Step-8 33-knot interpolation arithmetic; per-Gamma expansion design superseded by direct readonly sampling",
+  "changes": [
+    "Selection uses this composite invocation's P+8 look record, not shared curve-library pointers.",
+    "Four fixed records with three independent knot arrays each; selected addresses validated by exact lookup table.",
+    "Remove generic knot-range detection because only prevalidated selected arrays reach expansion.",
+    "Preserve incoming output registers for stock fallback and original global-byte clear side effect.",
+    "Guard stock outputs that point to repurposed banks3-5 by using intact banks6-8; unknown-record visual preservation remains unverified.",
+    "Replace selected per-Gamma expansion with a four-byte-stack leaf sampler; independently compose RGB/Y directly from readonly33 knots.",
+    "Dispatch selected consumers at536E87C8, preserve stock fallback and original flags/canary/epilogue; no new private RAM."
+  ],
+  "modified_by": "LiorMoment",
+  "numeric_fitter": "Local exact-rational tridiagonal least-squares implementation; no upstream NumPy fitter or monotonic accumulate copied.",
+  "assets_adopted": false,
+  "original_full_profiles_modified": false,
+  "lossless_storage_claimed": false
+}

@@ -7,3 +7,6 @@
 *.jpg binary
 *.jpeg binary
 *.bin binary
+
+# Precompiled code resource is SHA-pinned as bytes on every platform.
+darkslide/data/film_arm_v1.json -text

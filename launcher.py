@@ -71,6 +71,9 @@ def main(argv=None):
         except KeyboardInterrupt:
             httpd.shutdown()
             worker.join()
+    ranges = sys.modules.get("darkslide.lut_ranges")
+    if ranges is not None:  # background slider-range work: drop what is still queued instead of finishing it
+        ranges.JOBS.stop()
     say("Darkslide GR 已停止，这个窗口可以关了。", "Darkslide stopped.")
 
 

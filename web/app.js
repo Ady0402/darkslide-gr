@@ -20,6 +20,7 @@ const state = {
   enterSlots: false,
   draftState: "",
   feature: "ic",
+  view: "split",   // 左右对比 / 只看调后 / 相机近似
 };
 
 // ---------------------------------------------------------------- api
@@ -55,6 +56,10 @@ function show(view) {
   show.current = view;
   for (const id of ["viewStart", "viewWork", "viewDone", "viewRescue", "viewQuit"]) $(id).hidden = id !== view;
   $("cameraChip").hidden = view === "viewStart" || view === "viewQuit";
+  // In a project the model is chosen right here in the top-right card; elsewhere it is just shown.
+  const inProject = !!state.project && view !== "viewStart";
+  $("projectBody").hidden = !inProject;
+  $("chipModel").hidden = inProject;
 }
 
 function el(tag, attrs, children) {
@@ -71,28 +76,124 @@ function el(tag, attrs, children) {
 }
 
 const slotOf = (no) => state.template.slots.find((s) => s.no === no);
+
+// Order of the preset list in Darkslide only (user, 2026-10-14): 负片 (12) right under 正片 (7).
+// Slot numbers, project keys and the camera's own menu order are unchanged.
+function listedSlots() {
+  const slots = state.template.slots.filter((s) => s.no !== 12);
+  const neg = slotOf(12), at = slots.findIndex((s) => s.no === 7);
+  if (neg && at >= 0) slots.splice(at + 1, 0, neg);
+  return neg && at < 0 ? state.template.slots : slots;
+}
 const editable = (slot, what) => slot[what] === "test" || slot[what] === "open";
 const assetUrl = (asset) => "/api/projects/" + state.project.id + "/assets/" + asset;
 const factoryUrl = (no) => state.factory ? "/api/factory/" + state.project.input_sha256 + "/icons/" + no + ".png" : null;
 
 // ---------------------------------------------------------------- start
+// Camera choice: a series (one firmware file per series) and a model inside it. Only the base GR III
+// has been tested on a camera; any other model asks the user to confirm before going on.
+const RICOH_FW = "https://www.ricoh-imaging.co.jp/resources/japan/support/download/digital/FIRMWARE/";
+const SERIES = [
+  { name: "GR III 系列", short: "GR III", desc: "28mm · 固件 2.10 · 4 个型号共用", tag: "可用", ready: true,
+    fw: "fwdc239b.bin", ver: "2.10", zip: "gr3_v210.zip", licence: "https://www.ricoh-imaging.co.jp/english/support/digital/gr3_s.html",
+    note: "同一个固件文件通用于 GR III、街拍版、日记版、HDF。",
+    models: [["GR III", "标准版", true], ["GR III Street Edition", "街拍版"], ["GR III Diary Edition", "日记版"], ["GR III HDF", "带柔光滤镜"]] },
+  { name: "GR IIIx 系列", short: "GR IIIx", desc: "40mm · 固件 1.60 · 3 个型号共用", tag: "已适配 · 未实测", ready: false,
+    fw: "fwdc243b.bin", ver: "1.60", zip: "gr3x_v160.zip", licence: "https://www.ricoh-imaging.co.jp/english/support/digital/gr3x_s.html",
+    note: "同一个固件文件通用于 GR IIIx、城市版、HDF。这一版的 GR IIIx 支持还在合并中，暂时不能导入。",
+    models: [["GR IIIx", "标准版"], ["GR IIIx Urban Edition", "城市版"], ["GR IIIx HDF", "带柔光滤镜"]] },
+  { name: "GR IV", short: "GR IV", desc: "28mm · 新一代", tag: "适配中", off: true, models: [] },
+];
+const CAM_KEY = "darkslide.camera";
+function loadCam() {
+  try { const c = JSON.parse(localStorage.getItem(CAM_KEY) || "{}"); if (SERIES[c.s] && !SERIES[c.s].off) return { s: c.s, v: c.v || 0, ok: c.ok || {} }; } catch (e) { /* first visit */ }
+  return { s: 0, v: 0, ok: {} };
+}
+function saveCam() { try { localStorage.setItem(CAM_KEY, JSON.stringify(state.cam)); } catch (e) { /* not remembered */ } }
+function camModel() { const ser = SERIES[state.cam.s]; return ser.models[Math.min(state.cam.v, ser.models.length - 1)]; }
+// The 下一步 button waits until an untested model has been confirmed (or the series isn't importable yet).
+// Only the missing tick on an untested model: the button stays clickable and reminds instead.
+function needsCamConfirm() { const m = camModel(); return SERIES[state.cam.s].ready && !m[2] && !state.cam.ok[m[0]]; }
+function remindCamConfirm() {
+  toast("先勾选上面黄色框里的确认（刷机风险自己承担），再点下一步", true);
+  const bar = $("camConfirm");
+  bar.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  bar.classList.remove("shake"); void bar.offsetWidth; bar.classList.add("shake");
+  $("camConfirmBox").focus({ preventScroll: true });
+}
+// Wrap a project-pick action: a missing confirmation reminds; any other block keeps the button disabled.
+function pickButton(attrs, action) {
+  const remind = needsCamConfirm(), blocked = camBlocked();
+  return el("button", Object.assign({}, attrs, {
+    class: attrs.class + (remind ? " soft-disabled" : ""), disabled: blocked && !remind,
+    "aria-disabled": blocked ? "true" : "false",
+    onclick: () => { if (needsCamConfirm()) return remindCamConfirm(); if (!camBlocked()) action(); },
+  }));
+}
+function camBlocked() { const m = camModel(); return !SERIES[state.cam.s].ready || (!m[2] && !state.cam.ok[m[0]]) || (state.firmware && state.firmware.model !== SERIES[state.cam.s].short); }
+
 function renderModels() {
-  const models = [
-    { name: "GR III", desc: "28mm · 固件 2.10", tag: "已支持", on: true, lens: 46 },
-    { name: "GR IIIx", desc: "40mm", tag: "未支持", lens: 54 },
-    { name: "GR IV", desc: "28mm · 新一代", tag: "未支持", lens: 48 },
-  ];
-  $("models").replaceChildren(...models.map((m) => el("button", {
-    class: "model" + (m.on ? " on" : ""), disabled: !m.on, "aria-pressed": m.on ? "true" : "false",
+  state.cam = state.cam || loadCam();
+  const cam = state.cam;
+  $("models").replaceChildren(...SERIES.map((x, i) => el("button", {
+    class: "model" + (i === cam.s ? " on" : ""), disabled: !!x.off, "aria-pressed": i === cam.s ? "true" : "false",
+    onclick: () => { if (i !== cam.s) { cam.s = i; cam.v = 0; saveCam(); renderModels(); } },
   }, [
-    (() => { const st = el("div", { class: "model-stage" }); st.innerHTML = window.DarkslideCamera.svg(m.name, m.name.replace(/\W/g, "")); return st; })(),
-    el("div", { class: "model-name" }, [el("b", { text: m.name }), el("span", { class: "mono xsmall " + (m.on ? "" : "dim2"), text: m.tag })]),
-    el("div", { class: "dim small", style: "width:100%", text: m.desc }),
+    (() => { const st = el("div", { class: "model-stage" }); st.innerHTML = window.DarkslideCamera.svg(x.short, x.short.replace(/\W/g, "")); return st; })(),
+    el("div", { class: "model-name" }, [el("b", { text: x.name }), el("span", { class: "series-tag " + (x.ready ? "ready" : x.off ? "off" : "warn"), text: x.tag })]),
+    el("div", { class: "dim small", style: "width:100%", text: x.desc }),
   ])));
+  renderVariants();
+}
+
+// Picking a model only refreshes this part; the camera drawings above stay put (no flash).
+function renderVariants() {
+  const cam = state.cam, ser = SERIES[cam.s], m = camModel();
+  $("variantsTitle").textContent = ser.name + " · 选你的型号";
+  $("variantsNote").textContent = ser.note;
+  $("variants").replaceChildren(...ser.models.map(([name, sub, tested], i) => el("button", {
+    class: "variant" + (i === cam.v ? " on" : ""), role: "radio", "aria-checked": i === cam.v ? "true" : "false",
+    onclick: () => { if (i !== cam.v) { cam.v = i; saveCam(); renderVariants(); } },
+  }, [
+    el("span", { class: "variant-name", text: name }),
+    el("span", { class: "dim2 xsmall", text: sub }),
+    el("span", { class: "variant-tag " + (tested ? "ready" : "warn"), text: tested ? "已实测" : "已适配 · 未实测" }),
+  ])));
+  const needConfirm = ser.ready && !m[2];
+  $("camConfirm").hidden = !needConfirm;
+  $("camConfirmName").textContent = m[0];
+  $("camConfirmText").textContent = cam.s === 0 ? "和 GR III 用同一个固件，但作者还没在这个型号上实测过。" : "已经适配完，但还没在真机上实测过。";
+  $("camConfirmBox").checked = !!cam.ok[m[0]];
+  // download link and file names follow the series
+  if (window.resetFwGet) window.resetFwGet();
+  $("fwDownload").href = RICOH_FW + ser.zip;
+  $("fwDownload").textContent = "下载 " + ser.short + " " + ser.ver;
+  $("fwHint").textContent = ser.zip + " 不用解压，" + ser.fw + " 也可以";
+  $("fwLicence").href = ser.licence;
+  $("drop").classList.toggle("off", !ser.ready);
+  $("fileInput").disabled = !ser.ready;
+  $("dropTitle").textContent = ser.ready ? "拖入官方固件，或点这里选择" : ser.short + " 支持还在合并中，暂时不能导入";
+  if (state.firmware && state.firmware.kind === "official") { renderImportMatch(); renderProjectPick(); }
 }
 
 // Longest preset name the camera can take for this preset (template name_max, else the original English length).
 const nameMax = (s) => s.name_max || s.factory_en.length;
+
+// The imported official file versus the current series choice. Re-run on every series/model
+// change, so a corrected choice clears an old "不一致" (and a wrong one clears an old ✓).
+function renderImportMatch() {
+  const res = state.firmware, out = $("importResult");
+  if (!res || res.kind !== "official") return false;
+  const chosen = SERIES[state.cam.s].short;
+  if (res.model !== chosen) {
+    out.className = "import-result small bad";
+    out.textContent = "导入的是 " + res.model + "，与选择的 " + chosen + " 不一致，请先重新选择系列和型号。";
+    return false;
+  }
+  out.className = "import-result small ok";
+  out.textContent = "✓ " + res.reason + " · SHA " + res.sha256.slice(0, 8) + "…" + res.sha256.slice(-8);
+  return true;
+}
 
 async function importFile(file) {
   const out = $("importResult");
@@ -104,11 +205,10 @@ async function importFile(file) {
     const res = await api("POST", "/api/firmware", buf, { "X-Filename": encodeURIComponent(file.name) });
     state.firmware = res;
     if (res.kind === "official") {
-      out.className = "import-result small ok";
-      out.textContent = "✓ " + res.reason + " · SHA " + res.sha256.slice(0, 8) + "…" + res.sha256.slice(-8);
+      if (!renderImportMatch()) return;
       renderProjectPick();
       const go = $("projectPick").querySelector(".btn.primary");
-      if (go) window.DarkslideGuide.showArrow(go);
+      if (go && !needsCamConfirm()) window.DarkslideGuide.showArrow(go);
     } else if (res.kind === "generated") {
       out.className = "import-result small ok";
       out.textContent = res.reason;
@@ -128,21 +228,79 @@ function renderProjectPick() {
   // The primary button is always "下一步": continue the latest project for this
   // firmware, or start a new one. Older projects stay listed above it.
   const sha = state.firmware.sha256;
+  if (state.firmware.model !== SERIES[state.cam.s].short) { $("projectPick").hidden = true; return; }
   const projects = (state.status.projects || []).filter((p) => p.input_sha256 === sha);
   const box = $("projectPick");
-  const items = projects.map((p) => el("button", { class: "project-item", onclick: () => openProject(p.id) }, [
-    el("span", { text: p.title }),
-    el("span", { class: "dim xsmall", text: p.changes + " 项改动" }),
-  ]));
-  items.push(el("button", { class: "btn primary", onclick: () => (projects.length ? openProject(projects[0].id) : newProject()), text: "下一步" }));
+  const items = projects.map((p) => {
+    const b = pickButton({ class: "project-item" }, () => openWithPickedModel(p.id, false));
+    b.append(el("span", { text: p.title }), el("span", { class: "dim xsmall", text: p.changes + " 项改动" }));
+    const del = el("button", { type: "button", class: "project-del", text: "×", title: "删除这个工程", "aria-label": "删除工程 " + p.title, onclick: () => deleteProject(p) });
+    return el("div", { class: "project-row" }, [b, del]);
+  });
+  items.push(pickButton({ class: "btn primary", title: needsCamConfirm() ? "先勾选上面的确认" : "", text: "下一步" },
+    () => (projects.length ? openWithPickedModel(projects[0].id, true) : newProject())));
   if (projects.length) items.push(el("button", { class: "btn ghost small-btn", onclick: newProject, text: "新建工程" }));
+  if (state.firmware.model === "GR IIIx") items.push(el("button", {class: "btn ghost small-btn", text: "导入旧版 GR IIIx 工程", onclick: importLegacyStore}));
   box.replaceChildren(...items);
   box.hidden = false;
 }
 
-async function newProject() {
+// The page's own confirm and prompt. The browser's confirm()/prompt() are blocked in some embedded
+// browsers (some answer "no" at once without showing anything), so the × and the other questions did nothing there.
+function askConfirm(text, yes, title, input) {
+  const d = $("askDialog"), field = $("askInput");
+  $("askTitle").textContent = title || "确认";
+  $("askText").textContent = text;
+  $("askYes").textContent = yes || "确定";
+  field.hidden = !input; field.value = "";
+  return new Promise((resolve) => {
+    const done = (v) => {
+      d.removeEventListener("close", onClose);
+      $("askYes").onclick = $("askNo").onclick = null;
+      if (d.open) d.close();
+      resolve(v);
+    };
+    const onClose = () => done(input ? null : false);
+    $("askYes").onclick = () => done(input ? field.value.trim() || null : true);
+    $("askNo").onclick = () => done(input ? null : false);
+    d.addEventListener("close", onClose);
+    d.showModal();
+    (input ? field : $("askNo")).focus();
+  });
+}
+window.askConfirm = askConfirm;
+
+// × on the home list (user, 2026-10-17). Says exactly what goes, and only acts after a yes.
+async function deleteProject(p) {
+  const builds = (state.status.builds || []).filter((b) => b.project_id === p.id).length;
+  const what = "删除工程「" + p.title + "」？它的草稿、保存的版本、上传的图片和导入的 LUT 会一起删掉" +
+    (builds ? "，生成过的 " + builds + " 份固件文件也会删掉（已经下载到电脑上的不受影响）" : "") + "。删除后不能恢复。";
+  if (!(await askConfirm(what, "删除", "删除工程"))) return;
   try {
-    const p = await api("POST", "/api/projects", { title: "未命名", input_sha256: state.firmware.sha256 });
+    const out = await api("POST", "/api/projects/" + p.id + "/delete");
+    state.status.projects = out.projects; state.status.builds = out.builds;
+    if (state.project && state.project.id === p.id) state.project = null;
+    renderProjectPick();
+    toast("已删除「" + p.title + "」");
+  } catch (e) { toast(e.message, true); }
+}
+
+async function importLegacyStore() {
+  const source = await askConfirm("旧版 GR IIIx 数据目录的完整路径（复制导入，保留原目录）", "下一步", "导入旧版 GR IIIx 工程", true);
+  if (!source) return;
+  try {
+    const plan = await api("POST", "/api/legacy-import", {source});
+    if (!(await askConfirm("找到 " + plan.projects.length + " 个工程、" + plan.builds.length + " 个历史生成记录。复制导入后，旧用户 LUT 需重新拟合；照片中保存的配方原值保留。继续？", "复制导入", "导入旧版 GR IIIx 工程"))) return;
+    await api("POST", "/api/legacy-import", {source, apply: true, source_digest: plan.source_digest});
+    state.status = await api("GET", "/api/status");
+    renderProjectPick(); toast("旧工程已复制导入，原目录保持不变");
+  } catch(e) {toast(e.message,true);}
+}
+
+async function newProject() {
+  if (camBlocked()) return;
+  try {
+    const p = await api("POST", "/api/projects", { title: "未命名", input_sha256: state.firmware.sha256, camera_variant: camModel()[0] });
     await loadProject(p);
   } catch (e) { toast(e.message, true); }
 }
@@ -151,8 +309,35 @@ async function openProject(id) {
   try { await loadProject(await api("GET", "/api/projects/" + id)); } catch (e) { toast(e.message, true); }
 }
 
+// From the home page the model just picked there applies (user, 2026-10-17: picked a model, the top
+// right did not follow). 下一步 (force) sets it on the project it continues; a project opened from the
+// list only takes it when it has no model of its own, so two cameras' projects do not overwrite each other.
+async function openWithPickedModel(id, force) {
+  const choice = camModel()[0];
+  try {
+    let p = await api("GET", "/api/projects/" + id);
+    if (choice && p.camera_variant !== choice && (force || !p.camera_variant))
+      p = await api("PUT", "/api/projects/" + id + "/target-body", { camera_variant: choice });
+    await loadProject(p);
+  } catch (e) { toast(e.message, true); }
+}
+
 async function loadProject(p) {
+  invalidateFilmPrepare();
   state.project = p;
+  if (p.template) state.template = p.template;
+  if (p.detail) state.status.detail = p.detail;
+  $("chipModel").textContent = p.camera_variant || state.template.model;
+  $("chipFw").textContent = "固件 " + state.template.firmware + " · 官方原件 · 已核对";
+  $("projectCapability").textContent = p.capabilities ? p.capabilities.note : "";
+  $("btnGenerate").disabled = !!(p.capabilities && !p.capabilities.full_firmware && !p.capabilities.candidate_generation);
+  $("btnGenerate").textContent = p.capabilities && p.capabilities.candidate_generation ? "生成离线候选" : "生成";
+  $("iiixRecipeOption").hidden = !(p.capabilities && p.capabilities.candidate_recipe_extension);
+  $("iiixRecipeExtension").checked = false;
+  const cameraButton = $("viewBtns").querySelector('[data-view="camera"]');
+  cameraButton.disabled = !!(p.capabilities && !p.capabilities.camera_fit);
+  if (cameraButton.disabled && state.view === "camera") state.view = "split";
+  $("outputVersion").textContent = state.template.firmware + "（不变）";
   state.changes = JSON.parse(JSON.stringify(p.draft.changes || {}));
   state.undo = [];
   state.redo = [];
@@ -160,10 +345,38 @@ async function loadProject(p) {
   state.knownRows = null;
   state.draftState = p.unsaved ? "草稿未正式保存" : (p.saved_at ? "已保存 " + p.saved_at.slice(11, 16) : "未保存");
   $("projectTitle").value = p.title;
+  renderProjectBody();
   try { state.factory = await api("GET", "/api/factory/" + p.input_sha256); } catch (e) { state.factory = null; }
   show("viewWork");
   renderAll();
+  window.DarkslideFilm.load(p.id);
   maybeGuide("work");
+}
+
+function renderProjectBody() {
+  const p = state.project, select = $("projectBody");
+  const family = p.template_id.startsWith("gr3x-") ? "GR IIIx" : "GR III";
+  const series = SERIES.find(s => s.short === family);
+  select.replaceChildren(el("option", { value: "", text: (p.target_body || family) + " · 选择具体型号" }),
+    ...series.models.map(m => el("option", { value: m[0], text: m[0] })));
+  select.value = p.camera_variant || "";
+  select.onchange = async () => {
+    if (!select.value) return;
+    const pid = p.id, choice = select.value;
+    invalidateFilmPrepare();
+    select.disabled = true;
+    try {
+      const updated = await api("PUT", "/api/projects/" + pid + "/target-body", {camera_variant: choice});
+      if (state.project && state.project.id === pid) {
+        invalidateFilmPrepare();
+        state.project = {...state.project, target_body: updated.target_body, camera_variant: updated.camera_variant};
+        $("chipModel").textContent = updated.camera_variant || state.template.model;
+        renderProjectBody();
+        renderAll();  // the factory shutdown picture and other per-model notes follow the new model
+      }
+    } catch (e) { toast(e.message, true); if (state.project && state.project.id === pid) renderProjectBody(); }
+    finally { select.disabled = false; }
+  };
 }
 
 // ---------------------------------------------------------------- guide
@@ -171,12 +384,44 @@ async function setPref(key, value) {
   try { state.status.prefs = await api("POST", "/api/prefs", { key, value }); } catch (e) { /* keep going */ }
 }
 
+// Preferences are saved one after another: the server rewrites the whole prefs file per request,
+// so two at once could drop one of them.
+async function setPrefs(pairs) {
+  for (const [key, value] of pairs) await setPref(key, value);
+}
+
 function maybeGuide(flow) {
+  if (flow === "work") return maybeWorkGuide();
   const prefs = (state.status && state.status.prefs) || {};
-  if (prefs.guide_off || prefs["guide_" + flow + "_seen"]) return;
-  requestAnimationFrame(() => window.DarkslideGuide.start(flow, (forever) => {
-    setPref("guide_" + flow + "_seen", true);
-    if (forever) setPref("guide_off", true);
+  if (prefs.guide_off || prefs["guide_" + flow + "_seen"] || window.DarkslideGuide.active()) return;
+  requestAnimationFrame(() => !window.DarkslideGuide.active() && window.DarkslideGuide.start(flow, (forever) => {
+    setPrefs([["guide_" + flow + "_seen", true], ...(forever ? [["guide_off", true]] : [])]);
+  }));
+}
+
+// Workbench (1.0, F35): the "1.0 新增" card once, then the 5-step preset-editing guide.
+// 以后再说 closes both for good; the "?" on the editing page or Settings replays them.
+function maybeWorkGuide() {
+  const prefs = (state.status && state.status.prefs) || {};
+  if (prefs.guide_off || window.DarkslideGuide.active()) return;
+  if (!prefs.guide_v1_news_seen) {
+    requestAnimationFrame(() => !window.DarkslideGuide.active() && window.DarkslideGuide.start("news", async (forever, how) => {
+      if (forever) { await setPrefs([["guide_v1_news_seen", true], ["guide_off", true]]); return; }
+      if (how === "next") { await setPref("guide_v1_news_seen", true); startEditorGuide(); }
+      else await setPrefs([["guide_v1_news_seen", true], ["guide_editor_seen", true]]);
+    }));
+  } else if (!prefs.guide_editor_seen) {
+    requestAnimationFrame(() => !window.DarkslideGuide.active() && startEditorGuide());
+  }
+}
+
+function startEditorGuide() {
+  if (state.feature !== "ic") { state.feature = "ic"; renderAll(); }
+  // The tour shows the film tiles, which only open on the four film presets: start on 银流冲洗.
+  const films = window.DarkslideFilm ? window.DarkslideFilm.SLOTS : [];
+  if (films.length && !films.includes(state.sel)) { state.sel = films[0]; renderAll(); }
+  requestAnimationFrame(() => window.DarkslideGuide.start("editor", (forever) => {
+    setPrefs([["guide_editor_seen", true], ...(forever ? [["guide_off", true]] : [])]);
   }));
 }
 
@@ -191,6 +436,66 @@ function mutate(fn) {
   for (const k of Object.keys(state.changes)) if (!Object.keys(state.changes[k]).length) delete state.changes[k];
   scheduleDraft();
   renderAll();
+}
+
+// Picking a film clears the right column: it starts from 0 on top of the new film.
+function setFilm(no, id) {
+  const prev = (state.changes[no] || {}).film;
+  mutate((c) => {
+    const slot = (c[no] = c[no] || {});
+    if (id === undefined) delete slot.film; else slot.film = id;
+    delete slot.grade;
+  });
+  syncFilmIcon(no, id);
+  syncFilmName(no, id, prev);
+}
+
+// Picking a built-in film also renames the preset to that film (user, 2026-10-17: 「名字也帮我自动替换」),
+// replacing whatever name was there; the name can still be edited afterwards. Leaving the film for none
+// or the user's own LUT drops a name that only came from the old film, back to the factory name.
+function syncFilmName(no, id, prev) {
+  const s = slotOf(no), F = window.DarkslideFilm;
+  if (!s || !editable(s, "rename") || !F || !F.presetName) return;
+  const max = nameMax(s), cur = (state.changes[no] || {}).name;
+  const name = id ? F.presetName(id, max) : null;
+  if (name === undefined) return;  // film list not loaded yet
+  if (name) { if (cur !== name) setEdit(no, "name", name); return; }
+  if (prev && cur !== undefined && cur === F.presetName(prev, max)) setEdit(no, "name", undefined);
+}
+
+// Choosing a built-in film puts its icon on the preset: the user's own picture for that film
+// (data folder film_icons/) if there is one, else the film's name plate as a 40×40 icon. A preset
+// that already has the user's own icon keeps it; an icon that came from a film follows the film.
+async function syncFilmIcon(no, id) {
+  const s = slotOf(no), cur = (state.changes[no] || {}).icon;
+  if (!s || !editable(s, "icon") || (cur && !cur.film)) return;
+  const F = window.DarkslideFilm, plate = id ? F.plateIcon(id) : null;
+  if (plate === undefined) return;  // film list not loaded yet
+  if (!plate) { if (cur) setEdit(no, "icon", undefined); return; }   // no film, or the user's own LUT
+  if (cur && cur.film === id) return;
+  try {
+    let source = plate.source, small = plate.small, r = plate.crop;
+    const url = F.iconUrl(id);
+    if (url) {
+      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("图标读不出来")); i.src = url; });
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      source = document.createElement("canvas");
+      source.width = Math.round(img.naturalWidth * k); source.height = Math.round(img.naturalHeight * k);
+      source.getContext("2d").drawImage(img, 0, 0, source.width, source.height);
+      // the largest centred area with the camera icon's visible shape (38×36)
+      const w = Math.min(source.width, source.height * VIS.w / VIS.h), h = w * VIS.h / VIS.w;
+      r = { sx: (source.width - w) / 2, sy: (source.height - h) / 2, sw: w, sh: h };
+      small = document.createElement("canvas");
+      small.width = small.height = 40;
+      const keep = crop.img;
+      crop.img = source;
+      try { drawIcon(small, r); } finally { crop.img = keep; }
+    }
+    const up = [await uploadPng(source, "source"), await uploadPng(small, "icon")];
+    const now = state.changes[no] || {};
+    if (now.film !== id || (now.icon && !now.icon.film)) return;  // changed again meanwhile
+    setEdit(no, "icon", { asset: up[1].asset, source: up[0].asset, style: "image", crop: r, film: id });
+  } catch (e) { toast(e.message, true); }
 }
 
 function setEdit(no, key, value) {
@@ -220,6 +525,7 @@ function redo() {
 }
 
 function scheduleDraft() {
+  invalidateFilmPrepare();
   state.draftState = "正在自动保存…";
   renderSaveState();
   clearTimeout(state.saveTimer);
@@ -240,16 +546,23 @@ async function pushDraft() {
 
 async function saveProject() {
   clearTimeout(state.saveTimer);
+  const projectId = state.project.id;
+  const changes = JSON.parse(JSON.stringify(state.changes));
   try {
-    await api("PUT", "/api/projects/" + state.project.id + "/draft", { changes: state.changes });
-    const p = await api("POST", "/api/projects/" + state.project.id + "/save");
+    await api("PUT", "/api/projects/" + projectId + "/draft", { changes });
+    if (!state.project || state.project.id !== projectId) return false;
+    const p = await api("POST", "/api/projects/" + projectId + "/save");
+    if (!state.project || state.project.id !== projectId || JSON.stringify(state.changes) !== JSON.stringify(changes)) return false;
     state.project = p;
     state.draftState = "已保存 " + p.saved_at.slice(11, 16);
     const flash = $("saveState").parentElement;
     flash.classList.remove("flash"); void flash.offsetWidth; flash.classList.add("flash");
     toast("已保存（第 " + p.versions.length + " 版）");
-  } catch (e) { toast(e.message, true); }
+    renderSaveState();
+    return true;
+  } catch (e) { if (state.project && state.project.id === projectId) toast(e.message, true); }
   renderSaveState();
+  return false;
 }
 
 // ---------------------------------------------------------------- render
@@ -299,18 +612,19 @@ function renderSlots() {
   setTimeout(() => { state.enterSlots = false; }, 0);
   const hadFocus = focusedIndex($("slots"));
   $("slotCount").textContent = state.template.slots.length;
-  $("slots").replaceChildren(...state.template.slots.map((s) => {
+  $("slots").replaceChildren(...listedSlots().map((s, i) => {
     const locked = !editable(s, "icon") && !editable(s, "rename");
     const edit = state.changes[s.no];
     const what = editable(s, "rename") ? "图标和预设名可改" : editable(s, "icon") ? "仅图标可改" : "暂不开放";
     const tag = edit ? "已改" : locked ? "不可改" : editable(s, "rename") ? "可改" : "仅图标";
     return el("button", {
       class: "slot open" + (s.no === state.sel ? " on" : "") + (state.enterSlots ? " enter" : ""),
-      style: state.enterSlots ? "animation-delay:" + (s.no - 1) * 20 + "ms" : null,
+      style: state.enterSlots ? "animation-delay:" + i * 20 + "ms" : null,
       role: "option", "aria-selected": s.no === state.sel ? "true" : "false",
-      title: s.name + " · " + what,
+      title: s.name + " · " + what + (window.DarkslideFilm.SLOTS.includes(s.no) ? " · 可换胶片 LUT，写进相机" : ""),
       onclick: () => { state.sel = s.no; renderAll(); },
     }, [
+      window.DarkslideFilm.SLOTS.includes(s.no) ? el("span", { class: "slot-lut mono", text: "LUT", "aria-hidden": "true" }) : null,
       slotIcon(s, "abbr"),
       el("span", { class: "slot-name", text: edit && edit.name !== undefined ? edit.name : s.name }),
       tag ? el("span", { class: "slot-tag", text: tag }) : null,
@@ -322,27 +636,30 @@ function renderSlots() {
 function renderEditor() {
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
+  window.DarkslideFilm.render(s, edit);
+  window.DarkslideAdjust.render(s, edit.grade, "", window.DarkslideFilm.SLOTS.includes(s.no));
   $("slotMeta").textContent = String(s.no).padStart(2, "0") + " · 原 " + s.name;
   $("slotTitle").textContent = edit.name !== undefined ? edit.name : s.name;
   if (factoryUrl(s.no)) $("iconFactory").replaceChildren(el("img", { src: factoryUrl(s.no), alt: s.name + " 原厂图标" }));
   else $("iconFactory").textContent = s.abbr;
   const iconNew = $("iconNew");
   if (edit.icon) {
-    iconNew.className = "icon-new has";
+    iconNew.className = "v1-icon has";
     const reveal = state.revealAsset === edit.icon.asset;
     iconNew.replaceChildren(el("img", { class: reveal ? "reveal" : null, src: assetUrl(edit.icon.asset), alt: s.name + " 新图标" }));
     if (reveal) state.revealAsset = null;
   } else {
-    iconNew.className = "icon-new";
+    iconNew.className = "v1-icon";
     iconNew.replaceChildren(el("span", { text: "未修改" }));
   }
   const iconOpen = editable(s, "icon");
   $("iconField").classList.toggle("locked", !iconOpen);
-  for (const id of ["btnUpload", "btnFactoryStyle", "btnIconReset"]) $(id).disabled = !iconOpen;
+  for (const id of ["btnUpload", "btnFactoryStyle", "btnIconReset", "iconNew"]) $(id).disabled = !iconOpen;
   $("btnIconReset").disabled = !iconOpen || !edit.icon;
-  $("iconHint").textContent = iconOpen
-    ? "自动裁成 40×40"
-    : "这个预设的图标" + (s.icon === "closed" ? "不开放编辑" : "稍后开放");
+  // Fewer words (user, 2026-10-17): the hint only explains a locked icon.
+  $("iconHint").textContent = iconOpen ? "" : "这个预设的图标" + (s.icon === "closed" ? "不开放编辑" : "稍后开放");
+  $("iconHint").hidden = iconOpen;
+  $("btnFactoryStyle").hidden = !iconOpen;
   $("lookBadge").hidden = !iconOpen && !editable(s, "rename");
 
   const nameOpen = editable(s, "rename");
@@ -359,10 +676,9 @@ function renderEditor() {
   const ok = checks.every((c) => c.ok);
   $("nameBox").classList.toggle("bad", nameOpen && !ok);
   $("nameCount").textContent = nameOpen ? value.length + " / " + limit : "";
-  // Compact card: list only failed rules; one line when everything passes.
+  // Only problems are listed (user, 2026-10-17): nothing is shown when the name passes.
   const failed = checks.filter((c) => !c.ok);
   const items = failed.map((c) => el("li", { class: "bad" }, [el("span", { class: "mk", text: "✕" }), el("span", { text: c.message })]));
-  if (nameOpen && !failed.length) items.push(el("li", {}, [el("span", { class: "mk", text: "✓" }), el("span", { text: "预设名检查通过（" + checks.length + " 项）" })]));
   $("nameBox").title = nameOpen ? "原厂英文名 " + s.factory_en + "。英文和简体中文菜单显示新预设名，其他语言保持原厂；超过 " + s.factory_en.length + " 个字符时，另有一种不常用的语言也会显示新预设名。" : "";
   if (!nameOpen) {
     items.push(el("li", { class: "info" }, [el("span", { class: "mk", text: "i" }), el("span", { text: "这个预设的预设名" + (s.rename === "closed" ? "暂不开放" : "稍后开放") + (s.note ? "：" + s.note : "") })]));
@@ -378,23 +694,24 @@ function renderEditor() {
   $("btnGrain").setAttribute("aria-checked", grainOn ? "true" : "false");
   $("grainLabel").textContent = grainStage === "factory" ? "原厂已有" : grainOn ? "开 · 强度在相机里调" : "关";
   $("grainBadge").textContent = grainStage === "factory" ? "原厂已有" : grainOpen ? "可改" : "研究中";
-  $("grainBadge").className = "badge mono " + (grainOpen && grainStage !== "factory" ? "solid" : "outline");
+  $("grainBadge").className = "v1-pill" + (grainOpen && grainStage !== "factory" ? " solid" : "");
+  // Short line under the switch (user, 2026-10-17: switch first, a few words below).
   $("grainHint").textContent = grainStage === "factory"
-    ? "这个预设的相机菜单本来就有颗粒（详细设置里调）。"
+    ? "这个预设本来就有颗粒，在相机的详细设置里调。"
     : grainOpen
-      ? "开放负片的颗粒菜单项，可与图标、预设名、关机图一起生成。关 / 低 / 中 / 高档位在相机里调。颗粒很细，相机屏幕上看整张图不明显，放大或在电脑上看 100% 才看得清。"
-      : "只有负片能开；其他预设加颗粒还在研究。";
+      ? "强度在相机里调；颗粒很细，放大才看得清。"
+      : "只有负片能开颗粒。";
 }
 
 function renderChanges() {
   const rows = [];
-  for (const s of state.template.slots) {
+  for (const s of listedSlots()) {
     const edit = state.changes[s.no];
     if (!edit) continue;
     if (edit.icon) {
       rows.push(el("div", { class: "change", "data-key": s.no + "i" }, [
         el("span", { class: "thumb" }, el("img", { src: assetUrl(edit.icon.asset), alt: "" })),
-        el("span", { class: "txt" }, [el("span", { text: s.name + " 图标" }), el("span", { text: edit.icon.style === "factory" ? "→ 原厂风格 · " + (edit.icon.text || "") : "→ 自定义图片" })]),
+        el("span", { class: "txt" }, [el("span", { text: s.name + " 图标" }), el("span", { text: edit.icon.style === "factory" ? "→ 原厂风格 · " + (edit.icon.text || "") : edit.icon.film ? "→ 胶片图标 · " + window.DarkslideFilm.nameOf(edit.icon.film) : "→ 自定义图片" })]),
         el("button", { "aria-label": "撤销 " + s.name + " 图标改动", text: "×", onclick: (e) => leaveThen(e, () => setEdit(s.no, "icon", undefined)) }),
       ]));
     }
@@ -403,6 +720,25 @@ function renderChanges() {
         el("span", { class: "thumb", text: "粒" }),
         el("span", { class: "txt" }, [el("span", { text: s.name + " 颗粒项" }), el("span", { text: "→ 开放 · 档位在相机里调" })]),
         el("button", { "aria-label": "撤销 " + s.name + " 颗粒项改动", text: "×", onclick: (e) => leaveThen(e, () => setEdit(s.no, "grain", undefined)) }),
+      ]));
+    }
+    if (edit.film) {
+      const candidate = window.DarkslideFilm.candidateReady();
+      const ready = candidate || window.DarkslideFilm.writerReady();
+      rows.push(el("div", { class: "change" + (ready ? "" : " pending"), "data-key": s.no + "f" }, [
+        el("span", { class: "thumb", text: "片" }),
+        el("span", { class: "txt" }, [el("span", { text: s.name + " 胶片" + (candidate ? " · 离线候选" : ready ? "" : " · 写入已接通，实机测试后才参与生成") }), el("span", { text: "→ " + window.DarkslideFilm.nameOf(edit.film) })]),
+        el("button", { "aria-label": "撤销 " + s.name + " 胶片改动", text: "×", onclick: (e) => leaveThen(e, () => setEdit(s.no, "film", undefined)) }),
+      ]));
+    }
+    if (edit.grade) {
+      const candidate = window.DarkslideFilm.candidateReady() && window.DarkslideFilm.SLOTS.includes(s.no);
+      const fit = candidate && window.DarkslideFilm.fitState(s, edit);
+      const ready = fit && fit.fit && !["超出范围", "预览不可用", "待拟合", "检查中"].includes(fit.level);
+      rows.push(el("div", { class: "change" + (ready ? "" : " pending"), "data-key": s.no + "c" }, [
+        el("span", { class: "thumb", text: "色" }),
+        el("span", { class: "txt" }, [el("span", { text: s.name + (candidate ? ready ? " 调色 · 离线候选" : " 调色 · 拟合后进入离线候选" : " 调色 · 预览和导出用") }), el("span", { text: "→ 自己调色" + (edit.film ? "（起点 " + window.DarkslideFilm.nameOf(edit.film) + "）" : "") })]),
+        el("button", { "aria-label": "撤销 " + s.name + " 调色", text: "×", onclick: (e) => leaveThen(e, () => setEdit(s.no, "grade", undefined)) }),
       ]));
     }
     if (edit.name !== undefined) {
@@ -431,6 +767,16 @@ function renderChanges() {
   const np = presetKeys().length;
   $("changeSlots").textContent = [np ? np + " 个预设" : "", sd ? "关机画面" : ""].filter(Boolean).join(" · ");
   $("changeList").replaceChildren(...(rows.length ? rows : [el("div", { class: "empty", text: "还没有改动" })]));
+  // the list scrolls inside the fixed sidebar: bring a newly added change into view
+  const fresh = $("changeList").querySelector(".change.enter");
+  if (fresh) fresh.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  changeListFade();
+}
+
+// Fade the bottom edge while more changes are hidden below.
+function changeListFade() {
+  const l = $("changeList");
+  l.classList.toggle("more", l.scrollHeight - l.scrollTop - l.clientHeight > 4);
 }
 
 function leaveThen(e, fn) {
@@ -578,6 +924,27 @@ async function applyCrop() {
   btn.disabled = false;
 }
 
+// The user's icon at card size: the camera gets the 40×40 copy, the card is drawn again from the
+// original upload (same crop) or, for a 原厂风格 icon, from its text at a larger scale.
+async function iconHiRes(icon) {
+  const S = 320, c = document.createElement("canvas");
+  c.width = c.height = S;
+  if (icon && icon.style === "factory" && icon.text) {
+    c.getContext("2d").scale(S / 40, S / 40);
+    drawFactory(c, icon.text);
+    return c.toDataURL("image/png");
+  }
+  if (!icon || !icon.source || !icon.crop) return null;
+  const im = await new Promise((ok) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ok(null); i.src = assetUrl(icon.source); });
+  if (!im) return null;
+  // just the cropped picture (the 38×36 shape the camera shows), without the camera's empty margin
+  const { sx, sy, sw, sh } = icon.crop, g = c.getContext("2d");
+  c.height = Math.round(S * VIS.h / VIS.w);
+  g.imageSmoothingQuality = "high";
+  g.drawImage(im, sx, sy, sw, sh, 0, 0, c.width, c.height);
+  return c.toDataURL("image/png");
+}
+
 function drawFactory(canvas, text) {
   const g = canvas.getContext("2d");
   g.clearRect(0, 0, 40, 40);
@@ -617,57 +984,188 @@ async function applyFactory() {
   } catch (e) { toast(e.message, true); }
 }
 
+// Read-only check of the saved snapshot. No auto-save, fit, generation or export.
+let filmPrepareEpoch = 0;
+function invalidateFilmPrepare() {
+  filmPrepareEpoch++;
+  const status = $("filmPrepareStatus"), slots = $("filmPrepareSlots");
+  if (status) status.textContent = "选择已改变，请保存后重新核对。";
+  if (slots) slots.replaceChildren();
+}
+async function prepareFilms() {
+  if (!state.project) return;
+  const pid = state.project.id, snapshot = JSON.stringify(state.changes), epoch = ++filmPrepareEpoch;
+  const valid = () => state.project && state.project.id === pid &&
+    JSON.stringify(state.changes) === snapshot && filmPrepareEpoch === epoch;
+  $("filmPrepareSlots").replaceChildren();
+  $("filmPrepareStatus").textContent = "正在核对已保存选择…";
+  try {
+    const result = await api("POST", "/api/projects/" + pid + "/film-prepare", {
+      expected_changes: JSON.parse(snapshot), request_id: String(epoch)
+    });
+    if (!valid()) return;
+    if (result.project_id !== pid || result.request_id !== String(epoch) ||
+        result.production_approved !== false || result.full_image_created !== false ||
+        result.decoded_growth_bytes !== 0) throw new Error("核对响应不符合只读要求");
+    if (!result.body || result.body.status !== "protected_windows_unchanged" ||
+        result.body.compatibility_approved !== false || result.body.device_tested !== false)
+      throw new Error(result.body && result.body.summary || "缺少有效的机身保护核对结果");
+    for (const row of result.slots) {
+      const el = document.createElement("div");
+      el.textContent = "位置 " + row.slot + "：" + (row.factory ? "保留原厂" : window.DarkslideFilm.nameOf(row.film));
+      $("filmPrepareSlots").append(el);
+    }
+    $("filmPrepareStatus").textContent = (result.data_verified && result.shared_reference_verified &&
+      result.coverage_verified ? "离线数据核对通过。" : "核对未通过。") + result.body.summary + "。" + result.note;
+  } catch (e) {
+    if (valid()) $("filmPrepareStatus").textContent = "核对未通过：" + e.message;
+  }
+}
+
 // ---------------------------------------------------------------- generate
 async function generate() {
+  const candidate = !!(state.project.capabilities && state.project.capabilities.candidate_generation);
+  const recipeExtension = candidate && !!state.project.capabilities.candidate_recipe_extension && $("iiixRecipeExtension").checked;
+  if (state.project.capabilities && !state.project.capabilities.full_firmware && !candidate) {
+    toast(state.project.capabilities.note, true); return;
+  }
   const bad = state.template.slots.filter((s) => {
     const e = state.changes[s.no];
     return e && e.name !== undefined && !Names.ok(e.name, nameMax(s));
   });
   if (bad.length) { toast(bad.map((s) => s.name).join("、") + " 的预设名没有通过检查", true); return; }
-  if (!Object.keys(state.changes).length) { toast("还没有改动", true); return; }
-  if (!(state.status.prefs || {}).preflight_seen) { $("preflightDialog").showModal(); return; }
-  await saveProject();
-  if (state.project.unsaved) return;
+  if (!Object.keys(state.changes).length && !recipeExtension) { toast("还没有改动", true); return; }
+  if (!(state.status.prefs || {}).preflight_seen) {
+    $("preflightRecovery").textContent = candidate
+      ? "本次为 GR IIIx 1.60 离线候选，官方原件为 fwdc243b.bin；安装和同版本回刷尚未实机验证。"
+      : "准备一张只放官方 2.10 原件 fwdc239b.bin 的救机卡。";
+    $("preflightDialog").showModal(); return;
+  }
+  // Every IIIx candidate asks again: nothing in the IIIx line has been tested on a camera yet.
+  if (candidate && !state.untestedAck) {
+    const body = state.project.camera_variant || state.project.target_body || "";
+    $("untestedBody").textContent = body ? "（这次是 " + body + "）" : "";
+    $("untestedExtension").hidden = !recipeExtension;
+    $("untestedBox").checked = false;
+    $("untestedOk").disabled = true;
+    $("untestedDialog").showModal(); return;
+  }
+  state.untestedAck = false;
+  const projectId = state.project.id;
+  if (!(await saveProject()) || !state.project || state.project.id !== projectId || state.project.unsaved) return;
+  const expected = JSON.parse(JSON.stringify(state.changes));
   showPending();
   try {
-    const manifest = await api("POST", "/api/projects/" + state.project.id + "/generate");
+    // Fitting happens here: presets whose 调色 or imported LUT is not fitted yet are fitted first.
+    await window.DarkslideFilm.fitPending(state.template.slots, expected, (slot, i, n) => {
+      $("doneTitle").textContent = "正在把调色拟合进相机…";
+      $("doneText").textContent = "「" + slot.name + "」（" + i + " / " + n + "），每个几秒钟；拟合完接着生成。";
+    });
+    if (!state.project || state.project.id !== projectId) return;
+    $("doneTitle").textContent = "正在生成并核对…";
+    $("doneText").textContent = "从官方原件重新生成，然后用另一套代码拆开读回、逐项核对。根据组合可能需要几十秒到几分钟。";
+    const manifest = await api("POST", "/api/projects/" + projectId + (candidate ? "/iiix-candidate" : "/generate"),
+      candidate ? {expected_changes: expected, recipe_extension: recipeExtension} : undefined);
+    if (!state.project || state.project.id !== projectId) return;
     state.status.builds = (state.status.builds || []).concat([{ build_id: manifest.build_id, project_id: manifest.project_id,
       output_sha256: manifest.output_sha256, created_at: manifest.created_at }]);
     showResult(true, manifest);
   } catch (e) {
-    showResult(false, { error: e.message, checks: (e.data && e.data.checks) || [] });
+    if (state.project && state.project.id === projectId) showResult(false, { error: e.message, checks: (e.data && e.data.checks) || [] });
   }
 }
 
 function showPending() {
   $("doneTag").textContent = "正在生成";
   $("doneTitle").textContent = "正在生成并核对…";
-  $("doneText").textContent = "从官方原件重新生成，然后用另一套代码拆开读回、逐项核对。大约需要十几秒。";
+  $("doneText").textContent = "从官方原件重新生成，然后用另一套代码拆开读回、逐项核对。根据组合可能需要几十秒到几分钟。";
   $("doneTable").replaceChildren();
   $("doneChecks").replaceChildren();
+  $("doneMore").hidden = true;
   $("doneDownloads").hidden = true;
+  $("dlNameHint").hidden = true;
+  $("doneGuide").hidden = true;
   show("viewDone");
 }
 
 function showResult(ok, data) {
   $("doneTag").textContent = ok ? "完成" : "未完成";
-  $("doneTitle").textContent = ok ? "固件已生成" : "还不能生成";
-  $("doneText").textContent = ok ? "全部核对通过。下面是这次生成的明细。" : data.error;
+  $("doneTitle").textContent = ok ? (data.experimental ? "离线候选已生成，机身待测" : "固件已生成") : "还不能生成";
+  $("doneText").textContent = ok ? (data.experimental ? "离线核对通过，机身还没实测。刷机风险自负。" : "离线核对全部通过。刷机风险自负。") : data.error;
+  // The long note, the table and every check sit in one line that opens on demand; failures open it.
+  const checks = data.checks || [];
+  const bad = checks.filter((c) => !c.ok).length;
+  $("doneDetail").textContent = ok ? (data.verification || "") : "";
+  $("doneDetail").hidden = !ok || !data.verification;
+  $("doneMoreSum").textContent = ok
+    ? "✓ 离线核对 " + checks.length + " 项全部通过 · 查看明细"
+    : (bad ? "✕ " + bad + " 项没通过 · 查看明细" : "查看明细");
+  $("doneMore").open = !ok && bad > 0;
+  $("doneMore").hidden = false;
   const rows = ok
-    ? [["工程", data.project_title], ["改动", data.summary.map((x) => x.preset + " " + x.what + " → " + x.value).join("；")],
-       ["版本", "2.10（不变）"], ["SHA-256", data.output_sha256],
-       ["验证", "离线核对通过"]]
+    ? [["工程", data.project_title], ["改动", data.summary.map((x) => x.preset + " " + x.what + " → " +
+        (x.what === "胶片" && window.DarkslideFilm ? window.DarkslideFilm.nameOf(x.value) : x.value)).join("；")],
+       ["版本", (data.firmware || state.template.firmware) + "（不变）"], ["SHA-256", data.output_sha256],
+       ["验证", data.experimental ? "离线核对通过，未实机验证" : "离线核对通过"],
+       ...(data.experimental ? [["文件大小", data.output_bytes ? (data.output_bytes / 1048576).toFixed(2) + " MiB" : "见下载文件"], ["配方扩展", data.decoded_growth_bytes ? "解码模块追加 " + data.decoded_growth_bytes + " 字节；曲线自身不扩容" : "未启用；曲线自身不扩容"]] : [])]
     : [["工程", state.project.title], ["模板", state.template.reviewed ? state.template.model + " " + state.template.firmware : "不可用"]];
   $("doneTable").replaceChildren(...rows.flatMap(([k, v]) => [el("dt", { text: k }), el("dd", { class: k === "SHA-256" ? "mono sha" : "", text: v })]));
-  $("doneChecks").replaceChildren(...(data.checks || []).map((c) => el("li", { class: c.ok ? "" : "bad" }, [
+  // Failed checks first, so they are the first thing seen when the line opens.
+  $("doneChecks").replaceChildren(...checks.filter((c) => !c.ok).concat(checks.filter((c) => c.ok)).map((c) => el("li", { class: c.ok ? "" : "bad" }, [
     el("span", { class: "mk", text: c.ok ? "✓" : "✕" }), el("span", { text: c.title + (c.detail ? "（" + c.detail + "）" : "") })])));
   const dl = $("doneDownloads");
   dl.hidden = !ok;
   if (ok) {
+    const fname = data.output_filename || state.template.official_inputs[0].filename;
+    $("dlNameReal").textContent = fname;
+    $("dlNameDup").textContent = fname.replace(/\.bin$/, " (1).bin");
+    $("dlFirmware").download = fname;
     $("dlFirmware").href = "/api/builds/" + data.build_id + "/firmware";
     $("dlManifest").href = "/api/builds/" + data.build_id + "/manifest";
   }
+  $("dlNameHint").hidden = !ok;
+  // Same flashing card for GR III and GR IIIx (Ricoh's IIIx steps are the same; user, 2026-10-17):
+  // only the file, the version and what has been tested differ.
+  $("doneGuide").hidden = !ok;
+  $("doneRescueLine").hidden = ok;  // the guide card already asks about the rescue card
+  $("doneRescueFw").textContent = (state.template && state.template.firmware) || "2.10";
+  if (ok) {
+    guideForSeries();
+    $("guideChecks").replaceChildren(...guideChecks(data.summary || []).map((t) => el("li", { text: t })));
+    setGuideOpen(guideOpenPref());
+  }
   show("viewDone");
+}
+
+function guideForSeries() {
+  const s = SERIES.find((x) => x.short === state.template.model) || SERIES[0], iiix = s.short === "GR IIIx";
+  for (const n of document.querySelectorAll("#doneGuide .guide-fw")) n.textContent = s.fw;
+  for (const n of document.querySelectorAll("#doneGuide .guide-ver")) n.textContent = s.ver;
+  $("guideBackDl").href = RICOH_FW + s.zip;
+  $("guideRescueWhy").textContent = iiix ? "（GR IIIx 还没在真机上实测过，一定要备好）" : "（虽然作者已在自己的 GR III 上实际验证成功，但以防万一）";
+  $("guideBackTested").textContent = iiix ? "GR IIIx 上还没实测。" : "已在一台 GR III 上实测。";
+}
+
+// After-flash checks follow what this build actually changed.
+function guideChecks(summary) {
+  const out = [];
+  const looks = [...new Set(summary.filter((x) => x.what === "图标" || x.what === "预设名").map((x) => x.preset))];
+  if (looks.length) out.push(looks.join("、") + " 的图标和名字");
+  for (const x of summary.filter((x) => x.what === "颗粒项")) out.push(x.preset + "的颗粒档位");
+  if (summary.some((x) => x.what === "关机图")) out.push("关一次机，看关机画面");
+  out.push("卡再格式化一次，删掉更新文件");
+  return out;
+}
+
+function guideOpenPref() {
+  try { return localStorage.getItem("darkslide.guideCollapsed") !== "1"; } catch (e) { return true; }
+}
+
+function setGuideOpen(open) {
+  $("guideBody").hidden = !open;
+  $("guideShort").hidden = open;
+  $("guideToggle").textContent = open ? "我刷过，收起" : "展开步骤";
+  try { localStorage.setItem("darkslide.guideCollapsed", open ? "0" : "1"); } catch (e) { /* private mode */ }
 }
 
 // ---------------------------------------------------------------- shutdown image
@@ -693,6 +1191,7 @@ function renderFeature() {
   }
   $("plist").hidden = f !== "ic";
   $("paneIC").hidden = f !== "ic";
+  $("adjustPanel").hidden = f !== "ic";
   $("paneShutdown").hidden = f !== "shutdown";
   $("paneSoon").hidden = !SOON[f];
   if (SOON[f]) {
@@ -716,48 +1215,59 @@ function renderPresetCard() {
   else icon.textContent = s.abbr;
   const grainStage = ((state.status.detail || {}).grain || {})[String(s.no)] || "closed";
   const grain = grainStage === "factory" ? "颗粒 · 原厂已有" : "颗粒 " + (edit.grain === true ? "开" : "关");
-  $("pcardChips").replaceChildren(...["原厂效果", grain, "柔光 关", "详细设置 · 相机里调"].map((t) => el("span", { class: "chip-s", text: t })));
+  if ($("pcardChips")) $("pcardChips").replaceChildren(...[edit.film ? "胶片 · " + window.DarkslideFilm.nameOf(edit.film) : "原厂效果", grain, "柔光 关", "详细设置 · 相机里调"].map((t) => el("span", { class: "chip-s", text: t })));
 }
 
-// Placeholder scenes until real samples are shot: both sides use the same
-// picture, only the grain overlay differs, and the badge says 仅示意.
-const SCENES = [
-  ["街景", "linear-gradient(135deg,#5B4A7A,#C46A3A 55%,#E8C25A)"],
-  ["静物", "linear-gradient(160deg,#2F5B4A,#7EA36A 50%,#D9D2B0)"],
-  ["夜景", "linear-gradient(180deg,#0E1424,#28305A 50%,#C9823A)"],
-];
-const samples = { scene: 0, mine: null };
+// The preview shows the user's own photo only (kept in this tab, never uploaded);
+// without one the frame stays black and offers 「换照片」.
+const samples = { mine: null };
 
 function sceneBackground() {
-  return samples.scene === 3 && samples.mine ? 'url("' + samples.mine + '")' : SCENES[Math.min(samples.scene, 2)][1];
+  return samples.mine ? 'url("' + samples.mine + '")' : "#111";
 }
+
+const VIEW_NOTES = { split: "左边原图，右边调后", after: "调后的完整效果（导出 LUT 就是这个）", camera: "写进相机大概的样子：拟合过就按相机参数算，否则是估算" };
 
 function renderSamples() {
   if (state.feature !== "ic") return;
-  const names = SCENES.map((x) => x[0]).concat(["＋ 我的照片"]);
   const hadFocus = focusedIndex($("sceneBtns"));
-  $("sceneBtns").replaceChildren(...names.map((label, i) => el("button", {
-    class: (samples.scene === i ? "on" : "") + (i === 3 ? " add" : ""), text: i === 3 && samples.mine ? "我的照片" : label,
-    "aria-pressed": samples.scene === i ? "true" : "false",
-    onclick: () => { if (i === 3 && !samples.mine) { $("sceneInput").click(); return; } samples.scene = i; renderSamples(); },
-  })));
+  $("sceneBtns").replaceChildren(el("button", { class: "add", text: samples.mine ? "＋ 换照片" : "＋ 选照片", onclick: () => $("sceneInput").click() }));
   refocus($("sceneBtns"), hadFocus);
+  $("sampleBadge").textContent = samples.mine ? "我的照片 · 只在本机" : "还没有照片";
+  $("sampleEmpty").hidden = !!samples.mine;
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
   const bg = sceneBackground() + " center / cover no-repeat";
+  const after = filmBackground(edit);
   $("sampleBefore").style.background = bg;
-  $("sampleAfter").style.background = bg;
-  $("sampleBeforeTag").textContent = "原厂 · " + s.name;
-  $("sampleAfterTag").textContent = "当前 · " + (edit.name !== undefined ? edit.name : s.name);
+  $("sampleAfter").style.background = after || bg;
+  for (const b of $("viewBtns").children) { const on = b.dataset.view === state.view; b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); }
+  $("sampleFrame").className = "v1-frame " + state.view;
+  const previewFailure = state.view === "camera" && window.DarkslideFilm.previewError(s.no, edit);
+  if (previewFailure && $("zoomDialog").open) $("zoomDialog").close();
+  $("viewNote").textContent = previewFailure ? "相机预览不可用：" + previewFailure + "。当前显示原图；可切换到调后查看原值效果。" : VIEW_NOTES[state.view];
+  $("sampleBeforeTag").textContent = "原图";
+  $("sampleAfterTag").textContent = previewFailure ? "原图 · 相机预览不可用" : state.view === "camera" ? "相机近似" : "调后" + (edit.film ? " · " + window.DarkslideFilm.nameOf(edit.film) : "");
   $("sampleGrain").classList.toggle("on", edit.grain === true);
+  window.DarkslideFilm.renderOutput(s, edit);
+}
+
+// The chosen film's approximate preview, shown on the user's own photo only.
+function filmBackground(edit) {
+  const url = window.DarkslideFilm.previewUrl(edit, state.view === "camera", slotOf(state.sel).no);
+  return url ? 'url("' + url + '") center / cover no-repeat' : null;
 }
 
 function openZoom() {
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
   const bg = sceneBackground() + " center / cover no-repeat";
-  $("zoomTitle").textContent = (edit.name !== undefined ? edit.name : s.name) + " · " + (samples.scene === 3 ? "我的照片" : SCENES[samples.scene][0]);
-  $("zoomAfter").style.background = bg;
+  $("zoomTitle").textContent = (edit.name !== undefined ? edit.name : s.name) + " · " + "我的照片";
+  if (state.view === "camera" && window.DarkslideFilm.previewError(s.no, edit)) {
+    toast("相机预览不可用，请切换到调后查看原值效果", true);
+    return;
+  }
+  $("zoomAfter").style.background = filmBackground(edit) || bg;
   $("zoomBefore").style.background = bg;
   $("zoomGrain").classList.toggle("on", edit.grain === true);
   $("zoomDialog").showModal();
@@ -775,7 +1285,7 @@ function setSplit(v) {
 const PARAM_NAMES = ["饱和度", "色相", "高/低调", "对比度", "高光对比", "阴影对比", "锐度", "暗角", "清晰度"];
 
 function renderParams() {
-  if (state.feature !== "ic") return;
+  if (state.feature !== "ic" || !$("paramsGrid")) return;
   const s = slotOf(state.sel);
   const fp = ((state.status.detail || {}).factory_params || {});
   const entry = (fp.slots || {})[String(s.no)];
@@ -805,7 +1315,12 @@ function renderShutdown() {
     b.setAttribute("aria-checked", on ? "true" : "false");
   }
   const fac = $("sdFactory");
-  const facUrl = state.project ? "/api/factory/" + state.project.input_sha256 + "/shutdown.jpg" : null;
+  // Each edition shows its own factory picture (firmware routes: 3 Street, 11 Urban, 12 Diary, 2 normal).
+  // Which one an HDF body shows is not verified, so those keep the normal picture and say so.
+  const variant = state.project ? state.project.camera_variant || "" : "";
+  const route = { "GR III Street Edition": [3, "Street 版"], "GR III Diary Edition": [12, "Diary 版"], "GR IIIx Urban Edition": [11, "Urban 版"] }[variant] || [2, /HDF/.test(variant) ? "普通版；HDF 机身实际显示哪张未核实" : ""];
+  $("sdFactoryCap").textContent = "原厂" + (route[1] ? "（" + route[1] + "）" : "");
+  const facUrl = state.project ? "/api/factory/" + state.project.input_sha256 + "/shutdown/" + route[0] + ".jpg" : null;
   if (facUrl && fac.dataset.src !== facUrl) {
     fac.dataset.src = facUrl;
     fac.replaceChildren(el("img", { src: facUrl, alt: "原厂关机画面" }));
@@ -821,10 +1336,13 @@ function renderShutdown() {
   }
   $("btnSdReset").disabled = !edit;
   const note = (t) => el("li", {}, [el("span", { class: "mk", text: "i" }), el("span", { text: t })]);
+  const iiix = state.project && state.project.template_id && state.project.template_id.startsWith("gr3x-");
   $("sdNotes").replaceChildren(
-    note("相机里不管选哪种关机画面样式，关机时都显示这一张（合作款除外）。"),
+    note(iiix ? "普通、Street、Urban、ING、Diary 五种关机样式共用这一张图，不扩容。"
+      : "普通、Street、Urban、ING、Diary 五种关机样式共用这一张图，不扩容。新增 Street 路线尚未实机验证。"),
     note("不扩容：写进固件里原有的关机图位置，其他资源不动。"),
-    note("单独改关机画面，或者和图标、预设名、负片颗粒一起改，都已在一台 GR III 上实测成功。"),
+    note(iiix ? "GR IIIx 还没在相机上实测过；关机画面的实测都是在 GR III 上做的。"
+      : "单独改关机画面，或者和图标、预设名、负片颗粒一起改，都已在一台 GR III 上实测成功。"),
     note("可以和图标、预设名一起生成，一次刷机全部生效。"),
   );
 }
@@ -938,6 +1456,7 @@ function wireShutdown() {
     $(id).addEventListener("click", () => { state.feature = key; renderAll(); });
   }
   for (const b of $("sdViewBtns").children) b.addEventListener("click", () => { sdView = b.dataset.view; renderShutdown(); });
+  $("sampleEmpty").addEventListener("click", (e) => { e.stopPropagation(); $("sceneInput").click(); });
   $("sampleBefore").addEventListener("click", openZoom);
   $("sampleAfter").addEventListener("click", openZoom);
   $("zoomClose").addEventListener("click", () => $("zoomDialog").close());
@@ -947,7 +1466,6 @@ function wireShutdown() {
     if (!f) return;
     if (samples.mine) URL.revokeObjectURL(samples.mine);
     samples.mine = URL.createObjectURL(f);   // stays in this browser tab; never uploaded
-    samples.scene = 3;
     renderSamples();
   });
   $("btnSdUpload").addEventListener("click", () => $("sdInput").click());
@@ -976,6 +1494,9 @@ function wireShutdown() {
 // ---------------------------------------------------------------- wire up
 function wire() {
   wireShutdown();
+  window.DarkslideAdjust.wire({ get: () => (state.changes[state.sel] || {}).grade, set: (g) => setEdit(state.sel, "grade", g), rerender: renderAll,
+    limits: () => window.DarkslideFilm.gradeLimitsFor((state.changes[state.sel] || {}).film) });
+  window.DarkslideFilm.wire(api, toast, { mine: () => samples.mine, scene: () => null, rerender: renderAll, invalidateCheck: invalidateFilmPrepare, setFilm, slotNo: () => slotOf(state.sel).no, allEdits: () => state.changes });
   const drop = $("drop");
   $("fileInput").addEventListener("change", (e) => e.target.files[0] && importFile(e.target.files[0]));
   drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
@@ -983,9 +1504,17 @@ function wire() {
   drop.addEventListener("drop", (e) => {
     e.preventDefault();
     drop.classList.remove("over");
-    if (e.dataTransfer.files[0]) importFile(e.dataTransfer.files[0]);
+    if (!$("drop").classList.contains("off") && e.dataTransfer.files[0]) importFile(e.dataTransfer.files[0]);
   });
-  $("cameraChip").addEventListener("click", () => { show("viewStart"); });
+  $("camConfirmBox").addEventListener("change", (e) => {
+    state.cam.ok[camModel()[0]] = e.target.checked; saveCam();
+    if (state.firmware && state.firmware.kind === "official") {
+      renderProjectPick();
+      const go = $("projectPick").querySelector(".btn.primary");
+      if (e.target.checked && go && !camBlocked()) window.DarkslideGuide.showArrow(go);
+    }
+  });
+  $("chipChange").addEventListener("click", () => { show("viewStart"); });
   $("nameInput").addEventListener("input", onNameInput);
   $("btnNameReset").addEventListener("click", () => setEdit(state.sel, "name", undefined));
   $("btnGrain").addEventListener("click", () => {
@@ -993,6 +1522,20 @@ function wire() {
     setEdit(state.sel, "grain", on ? undefined : true);
   });
   $("btnUpload").addEventListener("click", () => $("imageInput").click());
+  $("iconNew").addEventListener("click", () => $("imageInput").click());
+  for (const b of $("viewBtns").children) b.addEventListener("click", () => { state.view = b.dataset.view; renderSamples(); });
+  $("sampleFrame").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (samples.mine) openZoom(); else $("sceneInput").click(); } });
+  $("btnExportCube").addEventListener("click", () => window.DarkslideFilm.exportCube(slotOf(state.sel), state.changes[state.sel] || {}));
+  $("btnFit").addEventListener("click", () => window.DarkslideFilm.fitNow(slotOf(state.sel), state.changes[state.sel] || {}));
+  $("btnPull").addEventListener("click", () => window.DarkslideFilm.pullNow(slotOf(state.sel), state.changes[state.sel] || {}));
+  window.DarkslideRecipe.wire(toast);
+  $("btnRecipe").addEventListener("click", async () => {
+    // card icon: the user's own icon, else the film's name plate, else the preset's factory icon
+    const edit = state.changes[state.sel] || {}, img = $("pcardIcon").querySelector("img");
+    const plate = edit.icon ? null : window.DarkslideFilm.plateOf(edit.film);
+    const own = await iconHiRes(edit.icon);
+    window.DarkslideRecipe.open(slotOf(state.sel), edit, own || plate || (img ? img.src : null));
+  });
   $("imageInput").addEventListener("change", (e) => { const f = e.target.files[0]; e.target.value = ""; if (f) startCrop(f); });
   $("btnIconReset").addEventListener("click", () => setEdit(state.sel, "icon", undefined));
   $("btnFactoryStyle").addEventListener("click", () => {
@@ -1027,18 +1570,29 @@ function wire() {
 
   $("btnSave").addEventListener("click", saveProject);
   $("btnGenerate").addEventListener("click", generate);
+  $("btnFilmPrepare").addEventListener("click", prepareFilms);
   $("preflightCancel").addEventListener("click", () => $("preflightDialog").close());
   $("preflightOk").addEventListener("click", async () => {
     $("preflightDialog").close();
     try { state.status.prefs = await api("POST", "/api/prefs", { key: "preflight_seen", value: true }); } catch (e) { toast(e.message, true); return; }
     generate();
   });
+  $("untestedBox").addEventListener("change", (e) => { $("untestedOk").disabled = !e.target.checked; });
+  $("untestedCancel").addEventListener("click", () => $("untestedDialog").close());
+  $("untestedOk").addEventListener("click", () => {
+    if (!$("untestedBox").checked) return;
+    $("untestedDialog").close();
+    state.untestedAck = true;
+    generate();
+  });
   $("btnBack").addEventListener("click", () => show("viewWork"));
+  $("guideToggle").addEventListener("click", () => setGuideOpen($("guideBody").hidden));
   $("projectTitle").addEventListener("change", async (e) => {
     try { state.project = await api("PATCH", "/api/projects/" + state.project.id, { title: e.target.value }); } catch (err) { toast(err.message, true); }
   });
-  for (const id of ["rescueLink", "rescueLink2"]) {
-    $(id).addEventListener("click", (e) => { e.preventDefault(); show("viewRescue"); window.scrollTo(0, 0); });
+  for (const id of ["rescueLink", "rescueLink2", "rescueLink3", "rescueLink4"]) {
+    $(id).addEventListener("click", (e) => { e.preventDefault();
+      renderRescue(); show("viewRescue"); window.scrollTo(0, 0); });
   }
   $("rescueBack").addEventListener("click", () => show(show.previous || "viewStart"));
   const rd = $("rescueDrop");
@@ -1053,8 +1607,9 @@ function wire() {
   });
   $("settingsClose").addEventListener("click", () => $("settingsDialog").close());
   $("btnOpenRescue").addEventListener("click", () => { $("settingsDialog").close(); show("viewRescue"); window.scrollTo(0, 0); });
+  $("btnEditorGuide").addEventListener("click", () => startEditorGuide());
   $("btnGuideReset").addEventListener("click", async () => {
-    for (const k of ["guide_off", "guide_start_seen", "guide_work_seen"]) await setPref(k, false);
+    for (const k of ["guide_off", "guide_start_seen", "guide_work_seen", "guide_v1_news_seen", "guide_editor_seen"]) await setPref(k, false);
     $("settingsDialog").close();
     toast("指引已重新打开");
     if (!$("viewWork").hidden && state.feature !== "ic") { state.feature = "ic"; renderAll(); }
@@ -1062,6 +1617,8 @@ function wire() {
   });
   $("btnQuit").addEventListener("click", quitApp);
   $("btnBuilds").addEventListener("click", openBuilds);
+  $("changeList").addEventListener("scroll", changeListFade, { passive: true });
+  window.addEventListener("resize", changeListFade);
   $("buildsClose").addEventListener("click", () => $("buildsDialog").close());
 
   document.addEventListener("keydown", (e) => {
@@ -1097,6 +1654,23 @@ async function quitApp() {
   show("viewQuit");
 }
 
+// The rescue page follows the open project's family (else the chosen series): IIIx has no camera test yet.
+function rescueTarget() {
+  const t = state.template && state.template.official_inputs && state.template.official_inputs[0];
+  if (t) return { model: state.template.model, ver: state.template.firmware, file: t.filename };
+  const ser = SERIES[(state.cam || loadCam()).s];
+  return { model: ser.short, ver: ser.ver, file: ser.fw };
+}
+function renderRescue() {
+  const r = rescueTarget();
+  document.querySelectorAll(".rescue-model").forEach((n) => { n.textContent = r.model; });
+  document.querySelectorAll(".rescue-ver").forEach((n) => { n.textContent = r.ver; });
+  document.querySelectorAll(".rescue-file").forEach((n) => { n.textContent = r.file; });
+  $("rescueTested").textContent = r.model === "GR III"
+    ? "同一版本可以重复更新：已在一台 GR III 上实测，改过的 2.10 可以刷入 2.10 机身，也可以再刷回官方 2.10 原件。"
+    : r.model + " 属于“已适配 · 未实测”：改过的 " + r.ver + " 能不能刷进机身、能不能再刷回官方 " + r.ver + " 原件，都还没有在真机上验证过。";
+}
+
 async function checkRescue(file) {
   const out = $("rescueResult");
   out.className = "import-result small dim";
@@ -1107,13 +1681,13 @@ async function checkRescue(file) {
     const official = state.template.official_inputs[0];
     if (digest === official.sha256 && file.name.toLowerCase() === official.filename.toLowerCase()) {
       out.className = "import-result small ok";
-      out.textContent = "✓ 是官方 GR III 2.10 原件，可以做救机卡。SHA " + digest.slice(0, 8) + "…" + digest.slice(-8);
+      out.textContent = "✓ 是官方 " + state.template.model + " " + state.template.firmware + " 原件，可以做救机卡。SHA " + digest.slice(0, 8) + "…" + digest.slice(-8);
     } else if (digest === official.sha256) {
       out.className = "import-result small bad";
-      out.textContent = "✕ 内容是官方原件，但文件名要改成 fwdc239b.bin（大小写不限）：相机按这个名字在卡的根目录找更新文件";
+      out.textContent = "✕ 内容是官方原件，但文件名要改成 " + official.filename + "（大小写不限）：相机按这个名字在卡的根目录找更新文件";
     } else {
       out.className = "import-result small bad";
-      out.textContent = "✕ 不是官方 GR III 2.10 原件，不能当救机卡用";
+      out.textContent = "✕ 不是官方 " + state.template.model + " " + state.template.firmware + " 原件，不能当救机卡用";
     }
   } catch (e) {
     out.className = "import-result small bad";
@@ -1125,7 +1699,7 @@ function openBuilds() {
   const mine = (state.status.builds || []).filter((b) => b.project_id === state.project.id).slice().reverse();
   $("buildList").replaceChildren(...(mine.length ? mine.map((b) => el("div", { class: "build-row" }, [
     el("div", { class: "txt" }, [el("span", { text: b.created_at.slice(0, 16).replace("T", " ") }), el("span", { class: "mono xsmall dim", text: "SHA " + b.output_sha256.slice(0, 8) + "…" + b.output_sha256.slice(-8) })]),
-    el("a", { class: "btn", href: "/api/builds/" + b.build_id + "/firmware", download: "fwdc239b.bin", text: "固件" }),
+    el("a", { class: "btn", href: "/api/builds/" + b.build_id + "/firmware", download: b.output_filename || state.template.official_inputs[0].filename, text: state.project.capabilities && state.project.capabilities.candidate_generation ? "候选固件" : "固件" }),
     el("a", { class: "btn ghost", href: "/api/builds/" + b.build_id + "/manifest", text: "清单" }),
   ])) : [el("div", { class: "empty", text: "这个工程还没有生成过。" })]));
   $("buildsDialog").showModal();
@@ -1137,6 +1711,13 @@ async function init() {
   try {
     state.status = await api("GET", "/api/status");
     state.template = state.status.template;
+    for (const series of SERIES.filter(s => !s.off)) {
+      const capability = (state.status.families || []).find(f => f.model === series.short);
+      if (capability) series.ready = capability.import_ready === true;
+      if (series.short === "GR IIIx" && series.ready)
+        series.note = "同一个固件文件通用于 GR IIIx、城市版、HDF。";
+    }
+    renderModels();
     maybeGuide("start");
   } catch (e) {
     $("importResult").textContent = "✕ 本地服务没有响应：" + e.message;

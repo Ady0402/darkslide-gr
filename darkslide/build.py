@@ -1,4 +1,4 @@
-from . import package
+from . import package, models
 """Deterministic, standard-library-only GR III 2.10 editor.
 
 Only returns bytes; the caller owns authorization and persistence.
@@ -16,7 +16,7 @@ PAYLOAD_SHA = "53da690797f35ad6dc2c429d8ca1d0de8e333c211ed959816813982cd093b703"
 INPUT_SIZE = 30391780
 PAYLOAD_SIZE = 59718388
 VERSION = b"\x02\x0a\x15\x1b"
-SOURCE_SHA256 = "93cb1c518af94483698734c89cc25ff366b743be3e0e8580331090f482216408"
+SOURCE_SHA256 = "8adad4db7994209ff91146fd86ce9cba4dd7644edec68d3cd7cb1ee52149887c"
 MAP = ((358, 4, "Standard"), (548, 268, "Vivid"),
        (354, 269, "Monotone"), (357, 270, "Soft Monotone"),
        (350, 271, "Hard Monotone"), (352, 272, "Hi-Contrast B&W"),
@@ -55,9 +55,9 @@ def _sum(data):
         raise BuildError(str(exc)) from exc
 
 
-def _decode(raw):
+def _decode(raw, model_id=None):
     try:
-        archive = package.Package.read(raw)
+        archive = package.Package.read(raw, model_id)
         return archive.image, archive.frames, archive.stream_end, archive.trailer.values()
     except package.PackageError as exc:
         raise BuildError(str(exc)) from exc
@@ -100,17 +100,21 @@ def _string(payload, identifier, language):
 
 
 def _template(template):
+    try:
+        model = models.for_template(template)
+    except ValueError as exc:
+        raise BuildError(str(exc)) from exc
     _require(type(template) is dict and template.get("reviewed") is True,
              "模板不可用，不能生成")
     _require(set(template) == {"schema", "id", "model", "firmware", "reviewed",
              "review_note", "official_inputs", "icon", "slots"}, "模板存在缺失或未知字段")
     _require(all(type(template[k]) is str for k in ("id", "model", "firmware", "review_note"))
-             and template["id"] == "gr3-2.10-reviewed-1", "模板版本或文本类型错误")
+             and template["id"] == model.id, "模板版本或文本类型错误")
     _require(type(template.get("schema")) is int and template["schema"] == 1 and
-             template.get("model") == "GR III" and template.get("firmware") == "2.10",
+             template.get("model") == model.name and template.get("firmware") == model.firmware,
              "不支持的模板身份")
     _require(_exact(template.get("official_inputs"),
-             [{"filename": "fwdc239b.bin", "size": INPUT_SIZE, "sha256": INPUT_SHA}],
+             [{"filename": model.filename, "size": model.input_size, "sha256": model.input_sha}],
              ), "模板官方输入身份错误")
     _require(_exact(template.get("icon"), {"width": 40, "height": 40,
              "visible": {"x": 1, "y": 2, "width": 38, "height": 36}}), "模板图标布局错误")

@@ -2,7 +2,7 @@
 
 Copyright (C) 2026 LiorMoment
 
-Darkslide 中由作者编写的程序代码、界面与文档，采用 **GNU General Public License version 2 only（GPL-2.0-only）**，全文见 [LICENSE](LICENSE)。你可以按 GPL 的条件使用、修改和再分发这些内容。本软件按现状提供，不作任何保证。任何表述与 LICENSE 冲突时，以 LICENSE 为准。
+DARKSLIDE GR 中由作者编写的程序代码、界面与文档，采用 **GNU General Public License version 2 only（GPL-2.0-only）**，全文见 [LICENSE](LICENSE)。你可以按 GPL 的条件使用、修改和再分发这些内容。本软件按现状提供，不作任何保证。任何表述与 LICENSE 冲突时，以 LICENSE 为准。
 
 本授权只覆盖作者自己编写的内容，不覆盖相机固件、厂商资源、商标、用户输入和第三方组件，详见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
@@ -20,4 +20,4 @@ Darkslide 中由作者编写的程序代码、界面与文档，采用 **GNU Gen
 
 ## 独立设计
 
-Darkslide 的界面、工作流程与全部代码均由作者独立设计和编写。
+DARKSLIDE GR 的界面和工作流程由作者设计，程序以作者自己的实现为主。胶片曲线开发模块中，曲线切换、曲线后矩阵、ARM 片段编译、数值拟合及只读基础曲线仿真的部分代码复用了 gr3-film-mods 的 MIT 授权实现；采用范围、来源和修改记录见 [第三方材料说明](THIRD_PARTY_NOTICES.md)。其余现有功能继续使用作者的实现。

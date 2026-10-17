@@ -6,12 +6,14 @@ def check(condition, explanation):
         raise ValueError(explanation)
 
 
-def inspect(raw):
+def inspect(raw, model_id=None):
+    from . import models
+    model = models.get(model_id)
     check(type(raw) is bytes and not len(raw) % 4 and len(raw) >= 152,
           'Invalid update-file extent')
     trailing = len(raw) - 24
     footer = tuple(int.from_bytes(raw[i:i + 4], 'little') for i in range(trailing, len(raw), 4))
-    check(footer[:3] == (0x024c024c, 0xa55a5aa5, 2) and footer[4] == 59718388,
+    check(footer[:3] == (model.project, 0xa55a5aa5, 2) and footer[4] == 59718388,
           'Unexpected update-file identity')
     boundary = 128 + footer[3]
     padding_count = (4 - boundary % 4) % 4

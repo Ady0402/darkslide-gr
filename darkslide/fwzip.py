@@ -28,11 +28,11 @@ def unwrap(data, filename):
     try:
         with zipfile.ZipFile(io.BytesIO(data)) as zf:
             members = [m for m in zf.infolist()
-                       if not m.is_dir() and PurePosixPath(m.filename).name.lower() == FIRMWARE_NAME]
+                       if not m.is_dir() and PurePosixPath(m.filename).name.lower() in (FIRMWARE_NAME, "fwdc243b.bin")]
             if not members:
-                raise ZipError("压缩包里没有 fwdc239b.bin。请用理光官网下载的 GR III 2.10 压缩包，或者解压后拖入 fwdc239b.bin")
+                raise ZipError("压缩包里没有已支持的官方固件，请导入 GR III 2.10 或 GR IIIx 1.60 官方包")
             if len(members) > 1:
-                raise ZipError("压缩包里有不止一个 fwdc239b.bin，请解压后拖入要用的那一个")
+                raise ZipError("压缩包里有不止一个固件候选，请解压后只导入所需官方 BIN")
             member = members[0]
             if member.file_size > MAX_MEMBER:
                 raise ZipError("压缩包里的 fwdc239b.bin 太大，不是 GR III 固件")

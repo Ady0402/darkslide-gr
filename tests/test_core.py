@@ -9,6 +9,7 @@ import urllib.request
 import zlib
 from pathlib import Path
 
+from firmware_registry_fixture import http_identity
 from darkslide import names, template as tpl
 from darkslide.identify import digest_of as sha256, identify
 from darkslide.server import App, LocalServer
@@ -158,6 +159,8 @@ class Http(unittest.TestCase):
         cls.tmp = tempfile.TemporaryDirectory()
         cls.app = App(cls.tmp.name)
         cls.app.template = test_template()
+        identity = http_identity(sha256(FAKE_OFFICIAL), len(FAKE_OFFICIAL), lambda: cls.app.template)
+        identity.__enter__(); cls.addClassCleanup(identity.__exit__, None, None, None)
         cls.app.extract_factory = lambda digest, data: None
         cls.httpd = LocalServer(("127.0.0.1", 0), cls.app)
         cls.port = cls.httpd.server_address[1]

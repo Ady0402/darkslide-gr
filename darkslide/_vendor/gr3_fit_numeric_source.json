@@ -1,0 +1,26 @@
+{
+  "project": "idontknownihil/gr3-film-mods",
+  "url": "https://github.com/idontknownihil/gr3-film-mods",
+  "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 idontknownihil",
+  "modified_by": "LiorMoment",
+  "files": [
+    {
+      "file": "make_film.py",
+      "sha256": "b1d91d2fa3d2ac9ba654972e21e59559fe465c7ba666a7ca7e73aadd8f01f5ff",
+      "part": "q13_matrix"
+    },
+    {
+      "file": "cube_fit.py",
+      "sha256": "2870b0c025538bb7d87bf2bbed19c3119b4df143d5d0a3770c75d913342ad503",
+      "part": "fit_curve"
+    }
+  ],
+  "changes": [
+    "Q13 quantization uses stdlib round (same ties-to-even), no NumPy App dependency.",
+    "fit_curve retains256-knot weighted least squares/second-difference regularization; lazy NumPy plus finite/domain checks.",
+    "No import of upstream Image, no patch/CLI execution, no foreign base_gamma_std.npy.",
+    "Equivalent D.T D Gram matrix uses non-BLAS einsum contraction: installed isolated NumPy2.2.6 matmul warned on the bounded integer stencil; warnings are not suppressed."
+  ]
+}

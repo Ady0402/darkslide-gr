@@ -14,8 +14,8 @@ from . import fwread
 TABLE_RUNTIME = 0x55002B78
 DATA_LMA = 0x5407B540
 DATA_RUNTIME = 0x55000000
-SHARED_REQUESTS = (2, 10, 11, 12)   # normal, ING, Urban, Diary
-OTHER_REQUESTS = (3,)               # Collabo stays untouched
+SHARED_REQUESTS = (2, 3, 10, 11, 12)  # normal, Street, ING, Urban, Diary
+OTHER_REQUESTS = (1, 4, 5, 6, 7, 8, 9)  # every other JPEG entry stays untouched
 DIARY_PATH = b"B:\\Resource\\Jpeg\\GB_Diary.jpg"
 # User updates skip every B: resource, so the shared image lives on A:.
 # Only the drive letter of the RTOS read path and of the RES record changes.
@@ -121,14 +121,14 @@ def verify(official_bin, output, jpeg):
         allowed.append((at, at + 4))
     stray = [r for r in _diff_runs(before, after)
              if not any(a <= r[0] and r[1] <= b for a, b in allowed)]
-    add("only_declared", "改动只在关机图位置、3 个入口指向、2 个盘符和末尾校验", not stray,
+    add("only_declared", "改动只在关机图位置、4 个入口指向、2 个盘符和末尾校验", not stray,
         "越界改动 %d 处" % len(stray) if stray else "")
 
     p1 = fwread.Payload(after, pinned=False)
     shared_ok = all(p1.u32(_table_va(r)) == diary_desc for r in SHARED_REQUESTS)
     others_ok = all(p1.u32(_table_va(r)) == p0.u32(_table_va(r)) for r in OTHER_REQUESTS)
-    add("requests", "普通 / ING / Urban / Diary 四个关机入口都指向同一位置", shared_ok)
-    add("collabo", "合作款入口保持原厂", others_ok)
+    add("requests", "普通 / Street / ING / Urban / Diary 五个关机入口都指向同一位置", shared_ok)
+    add("collabo", "其他 JPEG 入口保持原厂", others_ok)
 
     drive_ok = (after[rtos_at] == NEW_DRIVE and after[record_at] == NEW_DRIVE and
                 after[rtos_at + 1:rtos_at + len(DIARY_PATH) + 1] == before[rtos_at + 1:rtos_at + len(DIARY_PATH) + 1])

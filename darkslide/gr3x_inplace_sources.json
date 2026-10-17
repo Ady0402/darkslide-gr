@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "source": "Darkslide GR III curve feature v29",
+  "source_files": {
+    "film_four_validation.py": "1b98bd1fbea57c58ef66a1657673d388ceae57dd2dc807357f1c772fb73c5504",
+    "film_extension.py": "302fd066a11d25e1ca8b7cfe6aa4090aea1f357dcb366efd6b7407535d84b4d6",
+    "film_scheme_c.py": "47465fe3f89f93fe87b700fce67b310aae0ea5a40d91332c74aa871ac99cc22e",
+    "film_standard_proxy.py": "19a91a50001fe86a44ddfc3a39646fb4da318750c2e47dd933c24c5c8da845c9",
+    "_vendor/gr3_four_curve_hooks.py": "80d8f3eb26dffb9278fb13b78865a78060cf62b95bc0d31dbbc5ab2c05ce1c3f",
+    "_vendor/gr3_four_curve_source.json": "1d115b336f0806f586e6ae46ce962f9c9e56145cd05e0bfa27457c3ba8092903",
+    "_vendor/gr3_zero_table_source.json": "1ce26a9d02dda1cc9b333c05158b67662c01eb54024e656a337d6f2734ee3d6a",
+    "factory_envelope.py": "4046597a7370e92ed907e19124b58432a6a09986a4f8d58d39567d9a9fb7c76d",
+    "film_inplace_cache.py": "f74474745757aebfec38fd0f9dcf9eba4e4ae8de76eb25a85ff71bf1ddce6908",
+    "film_inplace_readback.py": "17e5fc5ff0368e0bc7e52ae3bb44e5cc1b7ea90527fd4065b94e7dc330d00cc0",
+    "film_inplace_reference.json": "39e6d3cbb766e8f5793b34eb86deb5594869a75c46e07d70b700c908cf0b831a",
+    "film_inplace_integrity.py": "59393af0040104d011bdef8d29a1f052a443af73ebd1eea1e5b3dfbc9f108eda"
+  },
+  "target": "GR IIIx 1.60",
+  "changes": [
+    "Bind original payload and numeric profiles to IIIx 1.60",
+    "Recompute scalar envelope from target original",
+    "Extract only required numeric and hook helpers",
+    "Retain frozen GR III shared-byte reference as parity only",
+    "Report lossy knot reconstruction errors"
+  ],
+  "upstream": "See _vendor/gr3_four_curve_source.json and gr3_zero_table_source.json; MIT notice retained",
+  "firmware_assets_copied": false,
+  "source_checkout_head_observed": "8d140a8c202792f6db2233ac32d7df7df41f83bf",
+  "source_basis": "Per-file SHA256 is authoritative; working files need not equal the checkout commit."
+}

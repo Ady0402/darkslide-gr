@@ -6,26 +6,37 @@ window.DarkslideGuide = (function () {
   const PAD = 6;
   const GAP = 16;
   const CARD_W = 360;
+  // A step without a target is a centred card (the 1.0 news card). next/skip label the two buttons;
+  // a step whose control is missing or hidden (narrow window, folded column) is skipped quietly.
   const FLOWS = {
     start: [
       { target: () => document.querySelector("#models .model.on"), title: "先选你的相机",
-        text: "目前支持 GR III（固件 2.10），其他机型会陆续加入。" },
+        text: "支持 GR III（固件 2.10）和 GR IIIx（固件 1.60）两个系列，GR IV 适配中。下面再选具体型号。" },
       { target: () => document.getElementById("drop"), title: "把官方固件拖到这里",
-        text: "从理光官网下载 GR III 2.10 的 fwdc239b.bin。工具会核对是不是官方原件，文件只留在你的电脑上。" },
+        text: "从理光官网下载对应系列的官方固件：GR III 是 fwdc239b.bin，GR IIIx 是 fwdc243b.bin。工具会核对是不是官方原件，文件只留在你的电脑上。" },
     ],
-    work: [
-      { target: () => document.getElementById("slots"), title: "选一个预设",
-        text: "左边列表是相机的 14 个预设。亮的可以改，灰的暂不开放。" },
-      { target: () => document.getElementById("iconField"), title: "换图标、改预设名",
-        text: "上传图片或用原厂风格做图标；预设名只能用英文，长度不超过原厂名，下面会实时检查。" },
-      { target: () => document.getElementById("btnGenerate"), title: "改完点“生成”",
-        text: "可以一次改好几个预设，也可以连关机画面一起改。生成后会自动核对，全部通过才给你下载。" },
+    news: [
+      { label: "1.0 新增", title: "这一版新加了这些",
+        lines: ["胶片：16 卷胶片，点一卷当起点", "自己调色：白平衡、影调、曲线、色彩，可导出 .cube",
+                "写进相机：选好的胶片和调色拟合后写进预设（近似）", "你自己的 LUT：导入后自动检查能不能写进相机", "新机型：GR IIIx 系列和 HDF（已适配 · 未实测）",
+                "装进相机：生成后一步步教你刷"],
+        next: "带我看看", skip: "以后再说" },
+    ],
+    editor: [
+      { target: () => document.getElementById("slots"), title: "先选一个预设",
+        text: "12 个内置预设都能改；标准只能换图标，自定义 1、2 不能改。" },
+      { target: () => document.getElementById("iconField"), title: "点图标就能换",
+        text: "名字在下面改，只能用英文；右边的数字是还能写几个字。" },
+      { target: () => document.getElementById("filmField"), title: "点一卷胶片当起点",
+        text: "预览会马上变。「＋ 添加」可以导入自己的 LUT 或 Lightroom 预设。只有银流冲洗、怀旧、HDR 色调、交叉冲洗这 4 个预设能把胶片写进相机。" },
+      { target: () => document.getElementById("adjustPanel"), title: "在胶片基础上微调",
+        text: "标「可写进相机」的会一起写进相机；标「仅预览/导出」的只进导出的 .cube。装了胶片的预设和「标准」共用相机里那组调节值，比较胶片前先把「标准」的调节归零。" },
+      { target: () => document.querySelector("#paneIC .v1-out"), title: "看相机能还原多少",
+        text: "近似程度「高」就放心生成；用了「仅预览/导出」的调整会变低。也可以只导出 .cube，或生成配方卡。", next: "知道了" },
     ],
   };
-  const TOTAL = FLOWS.start.length + FLOWS.work.length - 1; // card numbering: 1,2 then 3,3,4
-  const NUMBERS = { start: [1, 2], work: [3, 3, 4] };
 
-  let layer, spot, card, flow, index, onEnd, arrowEl, arrowTarget;
+  let layer, spot, card, flow, index, onEnd, arrowEl, arrowTarget, arrowWired = false;
 
   function build() {
     if (layer) return;
@@ -46,11 +57,16 @@ window.DarkslideGuide = (function () {
       '<div class="guide-title"></div><div class="guide-text"></div>' +
       '<div class="guide-actions"><button class="guide-next">知道了</button><button class="guide-skip">不再提示</button></div></div>';
     card.querySelector(".guide-next").addEventListener("click", next);
-    card.querySelector(".guide-skip").addEventListener("click", () => finish(true));
+    card.querySelector(".guide-skip").addEventListener("click", () => {
+      const step = FLOWS[flow][index];
+      finish(!step.skip, "skip");  // a custom skip label (e.g. 以后再说) only closes this card
+    });
     layer.append(spot, card);
     document.body.append(layer);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
+    // Cards rise into place (CSS animation): measure again once they have landed, or the frame sits 8px low.
+    document.addEventListener("animationend", () => { if (!layer.hidden) place(); }, true);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !layer.hidden) finish(false);
       if (e.key === "Escape" && arrowEl) hideArrow();
@@ -66,18 +82,32 @@ window.DarkslideGuide = (function () {
     show();
   }
 
+  function visible(el) {
+    if (!el || el.closest("[hidden]")) return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 4 && r.height > 4;
+  }
+
   function show() {
     const step = FLOWS[flow][index];
-    const el = step.target();
-    if (!el) { next(); return; }
-    el.scrollIntoView({ block: "center" });
-    const n = NUMBERS[flow][index];
-    card.querySelector(".guide-label").textContent = "指引 " + n + " / " + (TOTAL - 0);
-    card.querySelector(".guide-num").textContent = String(n).padStart(2, "0");
+    const el = step.target ? step.target() : null;
+    if (step.target && !visible(el)) { next(); return; }
+    if (el) el.scrollIntoView({ block: "center" });
+    const total = FLOWS[flow].length, n = index + 1;
+    card.querySelector(".guide-label").textContent = step.label || (total > 1 ? "指引 " + n + " / " + total : "指引");
+    card.querySelector(".guide-num").textContent = step.label ? "1.0" : String(n).padStart(2, "0");
     card.querySelector(".guide-title").textContent = step.title;
-    card.querySelector(".guide-text").textContent = step.text;
+    const text = card.querySelector(".guide-text");
+    if (step.lines) {
+      text.replaceChildren(...step.lines.map((t) => { const li = document.createElement("div"); li.className = "guide-line"; li.textContent = "· " + t; return li; }));
+    } else {
+      text.textContent = step.text;
+    }
+    card.querySelector(".guide-next").textContent = step.next || (n === total ? "知道了" : "下一步");
+    card.querySelector(".guide-skip").textContent = step.skip || "不再提示";
     card.classList.remove("in");
     place();
+    setTimeout(() => { if (!layer.hidden) place(); }, 450);  // after any entry animation of the target
     void card.offsetWidth;
     card.classList.add("in");
     card.querySelector(".guide-next").focus({ preventScroll: true });
@@ -85,7 +115,16 @@ window.DarkslideGuide = (function () {
 
   function place() {
     if (layer && !layer.hidden) {
-      const el = FLOWS[flow][index].target();
+      const step = FLOWS[flow][index];
+      if (!step.target) {
+        Object.assign(spot.style, { left: "50%", top: "50%", width: "0px", height: "0px" });
+        const ch = card.offsetHeight || 260;
+        Object.assign(card.style, { left: Math.max(GAP, (window.innerWidth - CARD_W) / 2) + "px",
+                                    top: Math.max(GAP, (window.innerHeight - ch) / 2) + "px" });
+        placeArrow();
+        return;
+      }
+      const el = step.target();
       if (!el) return;
       const r = el.getBoundingClientRect();
       const s = { x: r.left - PAD, y: r.top - PAD, w: r.width + PAD * 2, h: r.height + PAD * 2 };
@@ -114,52 +153,55 @@ window.DarkslideGuide = (function () {
 
   function next() {
     index += 1;
-    if (index >= FLOWS[flow].length) finish(false);
+    if (index >= FLOWS[flow].length) finish(false, "next");
     else show();
   }
 
-  function finish(forever) {
+  // forever: the user asked never to see guides again ("不再提示"). how: "next" | "skip" | "close".
+  function finish(forever, how) {
     if (!layer || layer.hidden) return;
     layer.hidden = true;
     const cb = onEnd;
     onEnd = null;
-    if (cb) cb(forever);
+    if (cb) cb(forever, how || "close");
   }
 
   // ------------------------------------------------ import-passed arrow
   function showArrow(target) {
     hideArrow();
+    if (!arrowWired) {  // keep the arrow on its target while the page or a column scrolls
+      arrowWired = true;
+      window.addEventListener("resize", placeArrow);
+      window.addEventListener("scroll", placeArrow, true);
+    }
+    target.scrollIntoView({ block: "nearest" });
     arrowTarget = target;
     arrowEl = document.createElement("div");
     arrowEl.className = "guide-arrow";
-    arrowEl.innerHTML =
-      '<span class="mono guide-arrow-label">导入通过 · 点击下一步</span>' +
-      '<svg width="24" height="52" viewBox="0 0 24 52" fill="none" stroke="#FFD31A" stroke-width="3" stroke-linecap="square">' +
-      '<path d="M12 2v46M2 38l10 10 10-10"/></svg>';
+    // Only the small label; no drawn arrow (user, 2026-10-16).
+    arrowEl.innerHTML = '<span class="mono guide-arrow-label">导入通过 · 点击下一步</span>';
     document.body.append(arrowEl);
     target.classList.add("guide-target");
-    // make room above the target so the arrow never covers nearby text
-    if (target.parentElement) target.parentElement.classList.add("guide-room");
+    // the arrow floats over the page: it never pushes the layout (no extra room is made for it)
     placeArrow();
     setTimeout(() => document.addEventListener("click", hideArrow, { once: true, capture: true }), 0);
   }
 
   function placeArrow() {
-    // vertical arrow above the target, pointing down at it
+    // label centred under the target (the space under 下一步 is empty); above it only when there is no room below
     if (!arrowEl || !arrowTarget) return;
     const r = arrowTarget.getBoundingClientRect();
     const w = arrowEl.offsetWidth, h = arrowEl.offsetHeight;
-    // label sits left of the arrow; keep the arrow itself centred on the target
-    const svgW = arrowEl.querySelector("svg").getBoundingClientRect().width;
-    const x = Math.max(8, Math.min(r.left + r.width / 2 + svgW / 2 - w, window.innerWidth - w - 8));
-    const y = Math.max(8, r.top - h - 6);
+    const below = r.bottom + h + 6 <= window.innerHeight - 8;
+    arrowEl.classList.toggle("up", below);
+    const x = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, window.innerWidth - w - 8));
+    const y = below ? r.bottom + 6 : Math.max(8, r.top - h - 6);
     Object.assign(arrowEl.style, { left: x + "px", top: y + "px" });
   }
 
   function hideArrow() {
     if (arrowTarget) {
       arrowTarget.classList.remove("guide-target");
-      if (arrowTarget.parentElement) arrowTarget.parentElement.classList.remove("guide-room");
     }
     if (arrowEl) arrowEl.remove();
     arrowEl = null;

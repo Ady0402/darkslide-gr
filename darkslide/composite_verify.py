@@ -8,7 +8,7 @@ Entropy/pixel decoding remains the caller's separate image validation step.
 """
 import hashlib
 import struct
-from . import fwread
+from . import fwread, models
 
 IDENTIFIERS = ((358, 4), (548, 268), (354, 269), (357, 270), (350, 271),
                (352, 272), (232, 274), (346, 275), (356, 276), (351, 277),
@@ -76,8 +76,8 @@ def _resources(payload):
     return rows
 
 
-def _container(raw):
-    return package_inspect.inspect(raw)
+def _container(raw, model_id=None):
+    return package_inspect.inspect(raw, model_id)
 
 
 def _longer_name_home(p, string):
@@ -108,10 +108,13 @@ def _longer_name_home(p, string):
     return None
 
 
-def verify(official, result, edits, template, jpeg=None):
+def verify(official, result, edits, template, jpeg=None, *, film_profiles=None,
+           film_layout='legacy_arena_v1'):
     """Return checks; failures are closed and do not authorize a download.
 
-Same request signature as build_composite. No modified BIN is read from disk.
+The caller selects the film layout explicitly; output metadata cannot select it.
+The four-curve layout requires all four current selections. No BIN is read from
+disk here, and passing checks does not change the generation availability gate.
 """
     checks = []
 
@@ -119,7 +122,25 @@ Same request signature as build_composite. No modified BIN is read from disk.
         checks.append(dict(id=key, title=key, ok=bool(ok), detail=detail))
 
     try:
-        _need(type(official) is bytes and _sha(official) == fwread.V210_INPUT_SHA256,
+        model = models.for_template(template)
+        _need(type(film_layout) is str and
+              film_layout in ('legacy_arena_v1', 'four_curve_v1', 'inplace_history_cache_exit_v29'), 'film layout')
+        _need(type(edits) is list and len(edits) <= 28 and (edits or jpeg is not None), 'request')
+        _need(all(type(edit) is dict for edit in edits), 'edit object')
+        film_edits = [edit for edit in edits if edit.get('kind') == 'film']
+        other_edits = [edit for edit in edits if edit.get('kind') != 'film']
+        _need(model == models.GR3 or not film_edits, 'IIIx ordinary verifier does not accept film edits')
+        _need(len(other_edits) <= 24, 'too many regular edits')
+        if film_layout == 'inplace_history_cache_exit_v29':
+            from . import film_inplace_complete as film_backend
+            profiles = None
+        elif film_layout == 'four_curve_v1':
+            from . import film_four_verify as film_backend
+            profiles = film_backend.resolve_profiles(film_edits, film_profiles)
+        else:
+            from . import film_verify as film_backend
+            profiles = None
+        _need(type(official) is bytes and _sha(official) == (fwread.V210_INPUT_SHA256 if model == models.GR3 else model.input_sha),
               'immutable official input')
         out = result['output']
         _need(type(out) is bytes, 'output bytes')
@@ -127,8 +148,8 @@ Same request signature as build_composite. No modified BIN is read from disk.
         add('output_sha', _sha(out) == result['output_sha256'])
         add('header_version', out[:128] == official[:128])
         add('file_sum', _sum32(out) == 0)
-        oldfoot, oldmeta, oldend = _container(official)
-        newfoot, newmeta, newend = _container(out)
+        oldfoot, oldmeta, oldend = _container(official) if model == models.GR3 else _container(official, model.id)
+        newfoot, newmeta, newend = _container(out) if model == models.GR3 else _container(out, model.id)
         add('container_bounds_padding', True)
         before, after = fwread.unpack(official[:oldend]), fwread.unpack(out[:newend])
         _need(len(before) == len(after), 'payload size')
@@ -136,7 +157,7 @@ Same request signature as build_composite. No modified BIN is read from disk.
         add('payload_sum', _sum32(after) == 0)
         add('footer_identity', oldfoot[:3] == newfoot[:3] and oldfoot[4] == newfoot[4])
         add('metadata', oldmeta == newmeta)
-        p = fwread.Payload(before)
+        p = fwread.Payload(before) if model == models.GR3 else fwread.Payload(before, models.layout(model))
         expected, spans = bytearray(before), []
 
         def write(at, data):
@@ -146,12 +167,11 @@ Same request signature as build_composite. No modified BIN is read from disk.
             expected[at:end] = data
             spans.append((at, end))
 
-        _need(type(edits) is list and len(edits) <= 24 and (edits or jpeg is not None), 'request')
         _need(type(template) is dict and template.get('reviewed') is True and
-              template.get('model') == 'GR III' and template.get('firmware') == '2.10' and
+              template.get('model') == model.name and template.get('firmware') == model.firmware and
               type(template.get('slots')) is list and len(template['slots']) == 14, 'template')
         seen = set()
-        for edit in edits:
+        for edit in other_edits:
             _need(type(edit) is dict, 'edit object')
             no, kind = edit['slot'], edit['kind']
             _need(type(no) is int and 1 <= no <= 14 and type(kind) is str and
@@ -215,10 +235,37 @@ Same request signature as build_composite. No modified BIN is read from disk.
                     write(en['record_offset'], record)
                     write(zh['record_offset'], record)
         add('icon_name_expected', True)
+        if film_edits and film_layout == 'inplace_history_cache_exit_v29':
+            evidence, actual_windows = film_backend.readback(bytes(before), bytes(after), film_edits, film_profiles)
+            for field in ('data_verified', 'shared_bytes_match_reference', 'complete_window_coverage_verified'):
+                _need(evidence.get(field) is True, 'v29 ' + field)
+                add('film_inplace_' + field, True)
+            for at, value in actual_windows:
+                write(at, value)
+            add('film_layout', True, film_layout)
+        elif film_edits:
+            def read(payload, address, size):
+                at = payload.off(address)
+                _need(payload.off(address + size - 1) == at + size - 1,
+                      'film read crosses mapped segments')
+                return payload.p[at:at + size]
+
+            q_film = fwread.Payload(after, pinned=False)
+            old_read = lambda address, size: read(p, address, size)
+            new_read = lambda address, size: read(q_film, address, size)
+            if profiles is None:
+                profiles = film_backend.resolve_profiles(film_edits, film_profiles)
+            expectation = film_backend.derive_expected(old_read, film_edits, profiles)
+            readback = film_backend.readback_windows(old_read, new_read, expectation)
+            checks.extend(readback.checks)
+            _need(readback.passed, 'film independent readback failed')
+            add('film_layout', True, film_layout)
+            for window in readback.expected_windows:
+                write(window.offset, window.data)
         row, start = p.off(0x53B3488C) + 6 * 8, p.off(0x53B3500C)
         add('grain_menu_expected', after[row:row+8] == expected[row:row+8] and
             after[start:start+28] == expected[start:start+28])
-        q = fwread.Payload(after, pinned=False)
+        q = fwread.Payload(after, pinned=False) if model == models.GR3 else fwread.Payload(after, models.layout(model), pinned=False)
         name_requests = {e['slot']: e for e in edits if e['kind'] == 'name'}
         semantic_ok = True
         for no, (icon, string) in enumerate(IDENTIFIERS, 1):
@@ -248,16 +295,16 @@ Same request signature as build_composite. No modified BIN is read from disk.
             write(body, actual)
             write(head, b'A')
             write(at, b'A')
-            for request in (2, 10, 11, 12):
+            for request in (2, 3, 10, 11, 12):
                 write(p.off(0x55002b78 + 4 * request), struct.pack('<I', desc))
-            add('a_path_four_requests_fixed_slot_jpeg', True)
+            add('a_path_five_requests_fixed_slot_jpeg', True)
         check_value = (2 ** 32 - _sum32(expected[:-4])) % (2 ** 32)
         expected[-4:] = check_value.to_bytes(4, 'little')
         # This exact comparison also protects all other icons, languages, request
         # pointers, RES headers/bodies, RTOS code, and every unedited payload byte.
         add('entire_payload_matches_independent_request', after == expected)
         add('payload_sha', _sha(after) == result['payload_sha256_after'])
-    except (ValueError, TypeError, KeyError, IndexError, struct.error,
+    except (OSError, ValueError, TypeError, KeyError, IndexError, struct.error,
             fwread.FirmwareReadError) as exc:
         add('closed_failure', False, str(exc))
     return checks

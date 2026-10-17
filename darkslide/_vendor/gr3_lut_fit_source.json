@@ -1,0 +1,33 @@
+{
+  "project": "idontknownihil/gr3-film-mods",
+  "url": "https://github.com/idontknownihil/gr3-film-mods",
+  "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 idontknownihil",
+  "modified_by": "LiorMoment",
+  "files": [
+    {
+      "file": "cube_fit.py",
+      "sha256": "2870b0c025538bb7d87bf2bbed19c3119b4df143d5d0a3770c75d913342ad503",
+      "part": "camera model, M_from, alternating matrix/curve fit, fit_curve, srgb target"
+    },
+    {
+      "file": "cca1_fit.py",
+      "sha256": "b69b3f3c2a59d7aa1b7239b72f65448d1580d9c4956c483349ce794f508c504d",
+      "part": "neutral-preserving post-curve matrix fit and Q512 diagonal repair"
+    },
+    {
+      "file": "lab_fit.py",
+      "sha256": "bf2f52c54d2755123cb296be343c7b48646456afb5091a54d073c453a9b59936",
+      "part": "perceptual refit: per-sample CIEDE2000 residual over look matrix, post matrix and 17-knot curve corrections"
+    }
+  ],
+  "changes": [
+    "Standard library only: banded Cholesky replaces numpy.linalg.solve; a six-term Levenberg-Marquardt with forward differences replaces scipy.optimize.least_squares.",
+    "Only sRGB-encoded .cube targets (cube_fit 'srgb' input), exposure offset kept as a parameter; tetrahedral interpolation written locally.",
+    "Samples are generated locally (grey ramp, hue wheel, skin tones, random colours); the ColorChecker table, warm boost sets and the 'colour' package are not used.",
+    "Base gamma is supplied by the caller at run time from the user's own official firmware (darkslide.base_curve); work/base_gamma_std.npy is not used.",
+    "CIEDE2000 written locally for the fit report; no Standard-look comparison (its matrix is not used).",
+    "lab_fit refit ported to the standard library: same parameters (6+6+3x17), plain Levenberg-Marquardt with per-parameter steps and a small damping floor instead of scipy least_squares; fewer samples; no ColorChecker or warm-boost sets; the post matrix is rounded to Q512 afterwards without re-solving the curve correction."
+  ]
+}

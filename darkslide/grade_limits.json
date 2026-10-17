@@ -1,0 +1,1978 @@
+{
+ "schema": 1,
+ "generated": "2026-10-16",
+ "fingerprint": {
+  "adjust_bake_sha256": "a0ff9547fbebe985f07a7fa4b321c3cdc15b6c47205d62e40a234bb015272baa",
+  "film_data_revision": "db56ada33fa0e371d253d34d0dcaa5eafae2ef943499317230bdcc0ff8e6d99a",
+  "previews": {
+   "5203": "02da082d01eed35e78e47f438d38bdf087a229a00fb5fe5ea56ac6a90293454f",
+   "5207": "39dcd3191d15aaa9a843bbf7364d8e41c61daffe27b77d3e6e09350c9bb62660",
+   "5213": "d908c4cae72e2765c40c6df9acf226ef8cc0b41499233d69819cbc0d6fea0706",
+   "5219": "70fb5f6dfc7e538e6b5eee7b2647606ccefa4d07f40e514186fdd29ee0fd47f8",
+   "c200": "25aec127f9f14e1b8f537be76bc69016221b5614cf6ca525c1be10b28dc93ab3",
+   "ektar100": "e7d38e631d583fa0e7e9d785efe1eaeeaae1b26d726d6b057321deaf37b40438",
+   "gold200": "51bd94f2ad5a87c7dde172bc08dbc35aa3b1ce51d96e6d0cd9b466b0f0cfe688",
+   "portra160": "732c7be4803dd52b0a151ada12a8d40ae666748cb3f646e5db30ad9efb7d3b7b",
+   "portra400": "86b77777949879baa813440729a16dcbc0e2a48ec0ef4798d26b3d42048580fd",
+   "portra800": "a25e59aac938d5e2cb2066b8e59d726424b949e70c763991b15ea65b1acf1ee2",
+   "portra800push1": "5c0138d2a74ee1b5d247da326dd213347a5d6946f93771af46e6c879ec2c260b",
+   "portra800push2": "1af8441031a59105cf8f27ff8b30114a4ce8535504ab36c71a1eac8fabdbac0f",
+   "pro400h": "94a165f1d50e56315318b1566d7275355ccf76890190ec5085d2ddf97fcd9778",
+   "ultramax400": "f5e138423ce86bb9803f19ddb5a0054a622e2907065f8111e4fd3a2bd9b9bbf0",
+   "verita200d": "5688245cb91ba18d260076a93ed334f218ed74c188e44b9dcb406ab81ea8e3e6",
+   "xtra400_portraendura": "922521d22d4c602b1cee3eefa00b6069b401c8a9fbd53c40b66d7e10edf38fdc"
+  }
+ },
+ "sliders": [
+  "temp",
+  "tint",
+  "exp",
+  "con",
+  "hi",
+  "sh",
+  "white",
+  "black",
+  "fade",
+  "sat",
+  "splitHi",
+  "splitSh"
+ ],
+ "method": "per slider alone, baked like the page (adjust.js combine camera=true, 33), real fit, film_fit_check.check_cube; bisection to the largest writable whole value",
+ "models": {
+  "gr3-2.10-reviewed-1": {
+   "5203": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -25,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     100
+    ],
+    "fade": [
+     -100,
+     80
+    ],
+    "sat": [
+     -100,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "5207": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -25,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     99
+    ],
+    "fade": [
+     -100,
+     83
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "5213": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -25,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     100
+    ],
+    "fade": [
+     -100,
+     84
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "5219": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -24,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     100
+    ],
+    "fade": [
+     -100,
+     86
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "c200": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -32,
+     32
+    ],
+    "con": [
+     -60,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     68
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     36
+    ],
+    "fade": [
+     -100,
+     23
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -46,
+     100
+    ]
+   },
+   "ektar100": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     32
+    ],
+    "con": [
+     -47,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     44
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     35
+    ],
+    "fade": [
+     -100,
+     21
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -39,
+     81
+    ]
+   },
+   "gold200": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     34
+    ],
+    "con": [
+     -49,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     38
+    ],
+    "fade": [
+     -100,
+     26
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -44,
+     100
+    ]
+   },
+   "portra160": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -35,
+     26
+    ],
+    "con": [
+     -52,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     53
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     47
+    ],
+    "fade": [
+     -100,
+     24
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -45,
+     100
+    ]
+   },
+   "portra400": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     35
+    ],
+    "con": [
+     -54,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     69
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     37
+    ],
+    "fade": [
+     -100,
+     25
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -42,
+     100
+    ]
+   },
+   "portra800": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     26
+    ],
+    "con": [
+     -40,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     47
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     34
+    ],
+    "fade": [
+     -100,
+     22
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -40,
+     100
+    ]
+   },
+   "portra800push1": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -35,
+     32
+    ],
+    "con": [
+     -54,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     51
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     36
+    ],
+    "fade": [
+     -100,
+     22
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -48,
+     100
+    ]
+   },
+   "portra800push2": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     31
+    ],
+    "con": [
+     -48,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     52
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     42
+    ],
+    "fade": [
+     -100,
+     23
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -55,
+     100
+    ]
+   },
+   "pro400h": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -31,
+     36
+    ],
+    "con": [
+     -62,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     38
+    ],
+    "fade": [
+     -100,
+     24
+    ],
+    "sat": [
+     -100,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -46,
+     100
+    ]
+   },
+   "ultramax400": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     30
+    ],
+    "con": [
+     -39,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     51
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     34
+    ],
+    "fade": [
+     -100,
+     23
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -36,
+     100
+    ]
+   },
+   "verita200d": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -27,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     92
+    ],
+    "fade": [
+     -100,
+     75
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "xtra400_portraendura": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -35,
+     27
+    ],
+    "con": [
+     -47,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     60
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     33
+    ],
+    "fade": [
+     -100,
+     20
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -44,
+     100
+    ]
+   }
+  },
+  "gr3x-1.60-reviewed-1": {
+   "5203": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -25,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     100
+    ],
+    "fade": [
+     -100,
+     80
+    ],
+    "sat": [
+     -100,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "5207": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -25,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     99
+    ],
+    "fade": [
+     -100,
+     83
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "5213": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -25,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     100
+    ],
+    "fade": [
+     -100,
+     84
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "5219": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -24,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     100
+    ],
+    "fade": [
+     -100,
+     86
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "c200": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -32,
+     32
+    ],
+    "con": [
+     -60,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     68
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     36
+    ],
+    "fade": [
+     -100,
+     23
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -46,
+     100
+    ]
+   },
+   "ektar100": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     32
+    ],
+    "con": [
+     -47,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     44
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     35
+    ],
+    "fade": [
+     -100,
+     21
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -39,
+     81
+    ]
+   },
+   "gold200": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     34
+    ],
+    "con": [
+     -49,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     38
+    ],
+    "fade": [
+     -100,
+     26
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -44,
+     100
+    ]
+   },
+   "portra160": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -35,
+     26
+    ],
+    "con": [
+     -52,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     53
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     47
+    ],
+    "fade": [
+     -100,
+     24
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -45,
+     100
+    ]
+   },
+   "portra400": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     35
+    ],
+    "con": [
+     -54,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     69
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     37
+    ],
+    "fade": [
+     -100,
+     25
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -42,
+     100
+    ]
+   },
+   "portra800": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     26
+    ],
+    "con": [
+     -40,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     47
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     34
+    ],
+    "fade": [
+     -100,
+     22
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -40,
+     100
+    ]
+   },
+   "portra800push1": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -35,
+     32
+    ],
+    "con": [
+     -54,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     51
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     36
+    ],
+    "fade": [
+     -100,
+     22
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -48,
+     100
+    ]
+   },
+   "portra800push2": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     31
+    ],
+    "con": [
+     -48,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     52
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     42
+    ],
+    "fade": [
+     -100,
+     23
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -55,
+     100
+    ]
+   },
+   "pro400h": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -31,
+     36
+    ],
+    "con": [
+     -62,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     38
+    ],
+    "fade": [
+     -100,
+     24
+    ],
+    "sat": [
+     -100,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -46,
+     100
+    ]
+   },
+   "ultramax400": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -36,
+     30
+    ],
+    "con": [
+     -39,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     51
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     34
+    ],
+    "fade": [
+     -100,
+     23
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -36,
+     100
+    ]
+   },
+   "verita200d": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -27,
+     100
+    ],
+    "con": [
+     -100,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     100
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     92
+    ],
+    "fade": [
+     -100,
+     75
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -100,
+     100
+    ]
+   },
+   "xtra400_portraendura": {
+    "_film_writable": true,
+    "temp": [
+     -100,
+     100
+    ],
+    "tint": [
+     -100,
+     100
+    ],
+    "exp": [
+     -35,
+     27
+    ],
+    "con": [
+     -47,
+     100
+    ],
+    "hi": [
+     -100,
+     100
+    ],
+    "sh": [
+     -100,
+     60
+    ],
+    "white": [
+     -100,
+     100
+    ],
+    "black": [
+     -100,
+     33
+    ],
+    "fade": [
+     -100,
+     20
+    ],
+    "sat": [
+     -99,
+     100
+    ],
+    "splitHi": [
+     -100,
+     100
+    ],
+    "splitSh": [
+     -44,
+     100
+    ]
+   }
+  }
+ },
+ "audit": {
+  "date": "2026-10-16",
+  "window": 6,
+  "fits": 5650,
+  "changes": [
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "5213",
+    "slider": "fade",
+    "side": "+",
+    "was": 87,
+    "now": 84
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "c200",
+    "slider": "sh",
+    "side": "+",
+    "was": 86,
+    "now": 68
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "ektar100",
+    "slider": "exp",
+    "side": "+",
+    "was": 37,
+    "now": 32
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "ektar100",
+    "slider": "con",
+    "side": "-",
+    "was": -53,
+    "now": -47
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "ektar100",
+    "slider": "sh",
+    "side": "+",
+    "was": 52,
+    "now": 44
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "ektar100",
+    "slider": "black",
+    "side": "+",
+    "was": 38,
+    "now": 35
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "ektar100",
+    "slider": "splitSh",
+    "side": "-",
+    "was": -43,
+    "now": -39
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra160",
+    "slider": "exp",
+    "side": "+",
+    "was": 29,
+    "now": 26
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra160",
+    "slider": "con",
+    "side": "-",
+    "was": -56,
+    "now": -52
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra160",
+    "slider": "sh",
+    "side": "+",
+    "was": 75,
+    "now": 53
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra400",
+    "slider": "sh",
+    "side": "+",
+    "was": 73,
+    "now": 69
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra400",
+    "slider": "black",
+    "side": "+",
+    "was": 50,
+    "now": 37
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra800",
+    "slider": "black",
+    "side": "+",
+    "was": 37,
+    "now": 34
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra800push1",
+    "slider": "sh",
+    "side": "+",
+    "was": 65,
+    "now": 51
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra800push1",
+    "slider": "fade",
+    "side": "+",
+    "was": 25,
+    "now": 22
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra800push2",
+    "slider": "con",
+    "side": "-",
+    "was": -53,
+    "now": -48
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "portra800push2",
+    "slider": "sh",
+    "side": "+",
+    "was": 66,
+    "now": 52
+   },
+   {
+    "model": "gr3-2.10-reviewed-1",
+    "film": "ultramax400",
+    "slider": "sh",
+    "side": "+",
+    "was": 56,
+    "now": 51
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "5213",
+    "slider": "fade",
+    "side": "+",
+    "was": 87,
+    "now": 84
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "c200",
+    "slider": "sh",
+    "side": "+",
+    "was": 86,
+    "now": 68
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "ektar100",
+    "slider": "exp",
+    "side": "+",
+    "was": 37,
+    "now": 32
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "ektar100",
+    "slider": "con",
+    "side": "-",
+    "was": -53,
+    "now": -47
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "ektar100",
+    "slider": "sh",
+    "side": "+",
+    "was": 52,
+    "now": 44
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "ektar100",
+    "slider": "black",
+    "side": "+",
+    "was": 38,
+    "now": 35
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "ektar100",
+    "slider": "splitSh",
+    "side": "-",
+    "was": -43,
+    "now": -39
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra160",
+    "slider": "exp",
+    "side": "+",
+    "was": 29,
+    "now": 26
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra160",
+    "slider": "con",
+    "side": "-",
+    "was": -56,
+    "now": -52
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra160",
+    "slider": "sh",
+    "side": "+",
+    "was": 75,
+    "now": 53
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra400",
+    "slider": "sh",
+    "side": "+",
+    "was": 73,
+    "now": 69
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra400",
+    "slider": "black",
+    "side": "+",
+    "was": 50,
+    "now": 37
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra800",
+    "slider": "black",
+    "side": "+",
+    "was": 37,
+    "now": 34
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra800push1",
+    "slider": "sh",
+    "side": "+",
+    "was": 65,
+    "now": 51
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra800push1",
+    "slider": "fade",
+    "side": "+",
+    "was": 25,
+    "now": 22
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra800push2",
+    "slider": "con",
+    "side": "-",
+    "was": -53,
+    "now": -48
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "portra800push2",
+    "slider": "sh",
+    "side": "+",
+    "was": 66,
+    "now": 52
+   },
+   {
+    "model": "gr3x-1.60-reviewed-1",
+    "film": "ultramax400",
+    "slider": "sh",
+    "side": "+",
+    "was": 56,
+    "now": 51
+   }
+  ],
+  "method": "each limit and the 6 whole values inside it fitted for real (grade_bake + film_fit_check); a failure moves the limit just inside it, repeated until clean"
+ },
+ "notes": [
+  "2026-10-17: fingerprint now covers only the camera-bake block of web/adjust.js (adjust_bake_sha256); values unchanged, bake verified identical by tests/test_grade_bake.py (was adjust_js_sha256 04aecbf65f33)"
+ ]
+}

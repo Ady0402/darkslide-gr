@@ -1,0 +1,112 @@
+{
+ "schema": 1,
+ "project": "idontknownihil/gr3-film-mods",
+ "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+ "license": "CC-BY-SA-4.0",
+ "authors": [
+  "Andrea Volpato",
+  "idontknownihil"
+ ],
+ "modified_by": "LiorMoment",
+ "native_effect_verified": false,
+ "profiles": [
+  {
+   "id": "portra400",
+   "film": "Kodak Portra 400",
+   "print_stock": "Portra Endura",
+   "source_path": "work/films_v11/fits/portra_b4n3_lab.json",
+   "source_sha256": "37deb95f3844827b33080a091c72e288dbe2c15a7fcb5e810187126c56b68dec",
+   "source_file": "upstream_gr3_fits/portra400.json",
+   "camera_file": "camera/portra400.json",
+   "camera_sha256": "218fb7841708a1629bff53c65cbc610b6755acee8a1db98b27e149ef88da873c",
+   "in_use": false,
+   "reason": "fitted to the plain spektrafilm exports; since 2026-10-15 all 16 looks are refitted by DARKSLIDE GR from the white-point 0.97 exports"
+  },
+  {
+   "id": "gold200",
+   "film": "Kodak Gold 200",
+   "print_stock": "Portra Endura",
+   "source_path": "work/films_v11/fits/gold_b4n3_lab.json",
+   "source_sha256": "e4861e646d9e87ca60a5cdc2dd92f60c74937fb9a42612212f11ae47b82d26e0",
+   "source_file": "upstream_gr3_fits/gold200.json",
+   "camera_file": "camera/gold200.json",
+   "camera_sha256": "3a4a00b9d8e435b2010ee739468141f1740fb4e2dc99a75eb82cca2a08004541",
+   "in_use": false,
+   "reason": "fitted to the plain spektrafilm exports; since 2026-10-15 all 16 looks are refitted by DARKSLIDE GR from the white-point 0.97 exports"
+  },
+  {
+   "id": "ektar100",
+   "film": "Kodak Ektar 100",
+   "print_stock": "Portra Endura",
+   "source_path": "work/films_v11/fits/ektar_b1n3_lab.json",
+   "source_sha256": "88763d4b080d48ee01926a00c327ed03482189dd792148d40ffdbd89252d7f6b",
+   "source_file": "upstream_gr3_fits/ektar100.json",
+   "camera_file": "camera/ektar100.json",
+   "camera_sha256": "4b8db5ca05f3c34bf736b8fa1c70d0349da6a4288f0050a05342feb062c14dba",
+   "in_use": false,
+   "replaced_by": "darkslide_fit (camera_profiles_darkslide_fits.json)",
+   "reason": "look matrix coefficient above the factory maximum read from the official firmware"
+  },
+  {
+   "id": "pro400h",
+   "film": "Fujifilm Pro 400H",
+   "print_stock": "Crystal Archive",
+   "source_path": "work/films_v11/fits/pro400h_own_b4n3_lab.json",
+   "source_sha256": "96cf435dfc8e951dc610e3fb1132035782273ed81691665363137916988ee986",
+   "source_file": "upstream_gr3_fits/pro400h.json",
+   "camera_file": "camera/pro400h.json",
+   "camera_sha256": "17f11ce2fafa48f137139965caca618456b0dd9bd25347db91f3812fa061a054",
+   "in_use": false,
+   "reason": "fitted to the plain spektrafilm exports; since 2026-10-15 all 16 looks are refitted by DARKSLIDE GR from the white-point 0.97 exports"
+  },
+  {
+   "id": "ultramax400",
+   "film": "Kodak UltraMax 400",
+   "print_stock": "Portra Endura",
+   "source_path": "work/films_v10/fits/ultramax400_portraendura_b4n3_joint.json",
+   "source_sha256": "2b8d2e328d3d43d6ca8ce66782a94beddb45e38acd104ac5b5f4460af0f43c21",
+   "source_file": "upstream_gr3_fits/ultramax400.json",
+   "camera_file": "camera/ultramax400.json",
+   "camera_sha256": "f49e313d7c41d1cbcbd77eef28b9f6f36c203e709e1cc9c62bf3bea092b584bf",
+   "in_use": false,
+   "reason": "fitted to the plain spektrafilm exports; since 2026-10-15 all 16 looks are refitted by DARKSLIDE GR from the white-point 0.97 exports"
+  },
+  {
+   "id": "xtra400_portraendura",
+   "film": "Fujifilm Superia X-Tra 400",
+   "print_stock": "Portra Endura",
+   "source_path": "work/films_v10/fits/xtra400_portraendura_b4n3_joint.json",
+   "source_sha256": "ac53029985be1fc8a7a0930c55a90af3ccb8cf7648c71ddc168bf5c0e5589980",
+   "source_file": "upstream_gr3_fits/xtra400_portraendura.json",
+   "camera_file": "camera/xtra400_portraendura.json",
+   "camera_sha256": "c4cc9e09aebf2644636c33cef450c9285e8adb3ba60cb70b270d47d9ff9c62f2",
+   "in_use": false,
+   "replaced_by": "darkslide_fit (camera_profiles_darkslide_fits.json)",
+   "reason": "look matrix coefficient above the factory maximum read from the official firmware"
+  },
+  {
+   "id": "5207",
+   "film": "Kodak Vision3 250D 5207",
+   "print_stock": "Kodak 2383",
+   "source_path": "work/films_v11/fits/vision3250d_2383_b4n3_lab.json",
+   "source_sha256": "76348f1a4092dd1d97d12176a8f4744da8008c215bc8f7f4e0688a8e350c0265",
+   "source_file": "upstream_gr3_fits/5207.json",
+   "camera_file": "camera/5207.json",
+   "camera_sha256": "1cb6f1ab3b751ff712288f5c5859acff67c955c1441ddbc1d8768334fe2f8546",
+   "in_use": false,
+   "reason": "fitted to the plain spektrafilm exports; since 2026-10-15 all 16 looks are refitted by DARKSLIDE GR from the white-point 0.97 exports"
+  },
+  {
+   "id": "5219",
+   "film": "Kodak Vision3 500T 5219",
+   "print_stock": "Kodak 2383",
+   "source_path": "work/films_v14/fits/vision3500t_2383_b4n3_lab.json",
+   "source_sha256": "332d8f2fa86bddcf780ee7a68cace18ed084f741c430d76dfcc66097234e027f",
+   "source_file": "upstream_gr3_fits/5219.json",
+   "camera_file": "camera/5219.json",
+   "camera_sha256": "e1c323bd65b1b1713fbf66488ac40304f999fc1acbfed01c3d0b2c95f7d37cc7",
+   "in_use": false,
+   "reason": "fitted to the plain spektrafilm exports; since 2026-10-15 all 16 looks are refitted by DARKSLIDE GR from the white-point 0.97 exports"
+  }
+ ]
+}

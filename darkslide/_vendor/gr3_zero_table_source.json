@@ -1,0 +1,28 @@
+{
+  "project": "idontknownihil/gr3-film-mods",
+  "url": "https://github.com/idontknownihil/gr3-film-mods",
+  "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+  "license": "MIT",
+  "copyright": "2026 idontknownihil",
+  "source_file": "make_slots16.py",
+  "source_sha256": "7ee4e90f65a2c87a1558ef8cd4818889471e66642ee54aaa489b0a9dd03983e5",
+  "adopted": "patch_ma zero-table identity checks and the eight-pointer relocation (lines 112-115)",
+  "local_file": "film_inplace_cache.py",
+  "modified_by": "LiorMoment",
+  "changes": [
+    "Strict exceptions replace assert",
+    "Original ArbiterService zero-source bytes are never overwritten",
+    "Reclaimed zero table holds four film records/curves/post data instead of GR IV hue-sector data"
+  ],
+  "new_local_implementation": "Lossless reconstruction of 59 repeated original identity matrices into existing per-object workspace; old matrix table tail holds film hook code. This matrix reconstruction is our new implementation, not an upstream tested solution.",
+  "excluded": [
+    "GR IV source assets",
+    "hue sector data",
+    "upstream full builder",
+    "RAW enum additions",
+    "new menu tones"
+  ],
+  "license_path": "GR3_FILM_MODS_LICENSE.txt",
+  "license_sha256": "478ba16bc494345f60cbcf8b06286d28467145b9ef96bdc790197131cd13df9c",
+  "integration_note": "Existing Darkslide v29 adoption carried into the 1.0 interface branch; sparse readonly preparation only."
+}

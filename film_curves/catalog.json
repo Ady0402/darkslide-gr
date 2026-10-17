@@ -1,0 +1,135 @@
+{
+ "schema": 1,
+ "note": "近似效果，与厂商无关；胶片名只说明效果的灵感来源，是各自权利人的商标。",
+ "credit": "预览 LUT 与胶片数据来自 spektrafilm（Andrea Volpato，CC BY-SA 4.0），由 LiorMoment 修改（设定白点）；相机参数由 DARKSLIDE GR 拟合。",
+ "films": [
+  {
+   "id": "portra400",
+   "name": "Portra 400",
+   "film": "Kodak Portra 400",
+   "print": "Portra Endura",
+   "preview": "preview/portra400.cube",
+   "source": "spektrafilm v0.3.4 portra400_portraendura"
+  },
+  {
+   "id": "gold200",
+   "name": "Gold 200",
+   "film": "Kodak Gold 200",
+   "print": "Portra Endura",
+   "preview": "preview/gold200.cube",
+   "source": "spektrafilm v0.3.4 gold200_portraendura"
+  },
+  {
+   "id": "ektar100",
+   "name": "Ektar 100",
+   "film": "Kodak Ektar 100",
+   "print": "Portra Endura",
+   "preview": "preview/ektar100.cube",
+   "source": "spektrafilm v0.3.4 ektar100_portraendura"
+  },
+  {
+   "id": "pro400h",
+   "name": "Pro 400H",
+   "film": "Fujifilm Pro 400H",
+   "print": "Crystal Archive Type II",
+   "preview": "preview/pro400h.cube",
+   "source": "spektrafilm v0.3.4 pro400h_crystalarchive"
+  },
+  {
+   "id": "ultramax400",
+   "name": "UltraMax 400",
+   "film": "Kodak UltraMax 400",
+   "print": "Portra Endura",
+   "preview": "preview/ultramax400.cube",
+   "source": "spektrafilm v0.3.4 ultramax400_portraendura"
+  },
+  {
+   "id": "xtra400_portraendura",
+   "name": "X-Tra 400",
+   "film": "Fujifilm X-Tra 400",
+   "print": "Portra Endura",
+   "preview": "preview/xtra400_portraendura.cube",
+   "source": "spektrafilm v0.3.4 xtra400_portraendura"
+  },
+  {
+   "id": "5207",
+   "name": "5207",
+   "film": "Kodak Vision3 250D",
+   "print": "Kodak 2383",
+   "preview": "preview/5207.cube",
+   "source": "spektrafilm v0.3.4 vision3250d_2383"
+  },
+  {
+   "id": "5219",
+   "name": "5219",
+   "film": "Kodak Vision3 500T",
+   "print": "Kodak 2383",
+   "preview": "preview/5219.cube",
+   "source": "spektrafilm v0.3.4 vision3500t_2383"
+  },
+  {
+   "id": "portra160",
+   "name": "Portra 160",
+   "film": "Kodak Portra 160",
+   "print": "Portra Endura",
+   "preview": "preview/portra160.cube",
+   "source": "spektrafilm v0.3.4 portra160_portraendura"
+  },
+  {
+   "id": "portra800",
+   "name": "Portra 800",
+   "film": "Kodak Portra 800",
+   "print": "Portra Endura",
+   "preview": "preview/portra800.cube",
+   "source": "spektrafilm v0.3.4 portra800_portraendura"
+  },
+  {
+   "id": "portra800push1",
+   "name": "Portra 800 推1",
+   "film": "Kodak Portra 800（推 1 档）",
+   "print": "Portra Endura",
+   "preview": "preview/portra800push1.cube",
+   "source": "spektrafilm v0.3.4 portra800push1_portraendura"
+  },
+  {
+   "id": "portra800push2",
+   "name": "Portra 800 推2",
+   "film": "Kodak Portra 800（推 2 档）",
+   "print": "Portra Endura",
+   "preview": "preview/portra800push2.cube",
+   "source": "spektrafilm v0.3.4 portra800push2_portraendura"
+  },
+  {
+   "id": "c200",
+   "name": "C200",
+   "film": "Fujifilm C200",
+   "print": "Crystal Archive Type II",
+   "preview": "preview/c200.cube",
+   "source": "spektrafilm v0.3.4 c200_crystalarchive"
+  },
+  {
+   "id": "5203",
+   "name": "5203",
+   "film": "Kodak Vision3 50D",
+   "print": "Kodak 2383",
+   "preview": "preview/5203.cube",
+   "source": "spektrafilm v0.3.4 vision350d_2383"
+  },
+  {
+   "id": "5213",
+   "name": "5213",
+   "film": "Kodak Vision3 200T",
+   "print": "Kodak 2383",
+   "preview": "preview/5213.cube",
+   "source": "spektrafilm v0.3.4 vision3200t_2383"
+  },
+  {
+   "id": "verita200d",
+   "name": "Verita 200D",
+   "film": "Kodak Verita 200D",
+   "print": "Kodak 2383",
+   "preview": "preview/verita200d.cube",
+   "source": "spektrafilm v0.3.4 verita200d_2383"
+  }
+ ]
+}

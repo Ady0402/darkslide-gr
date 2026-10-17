@@ -142,7 +142,7 @@ class RealFirmware(unittest.TestCase):
     def test_real_build_passes_gate(self):
         checks = G.gate(self.raw, self.result["output"])
         self.assertTrue(G.all_ok(checks), failed(checks))
-        self.assertEqual(len(checks), 7)
+        self.assertEqual(len(checks), 8)  # incl. official input identity
 
     def test_official_passes_gate_against_itself(self):
         self.assertTrue(G.all_ok(G.gate(self.raw, self.raw)))

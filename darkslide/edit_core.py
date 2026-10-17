@@ -1,4 +1,4 @@
-from . import package
+from . import package, models
 """Apply requested icon/name edits and package the result once.
 
 Uses the fixed image layout and package contract. Returns bytes,
@@ -12,7 +12,7 @@ PAYLOAD_SHA, PAYLOAD_SIZE = codec.PAYLOAD_SHA, codec.PAYLOAD_SIZE
 _template, _require, _sha = codec._template, codec._require, codec._sha
 _icon, _string = codec._icon, codec._string
 _sum, _literal, _decode = codec._sum, codec._literal, codec._decode
-SOURCE_SHA256 = "87df37f6f3c8f7933fb2072d246a6cda7f627b251bd7d8ce54099a1bc58bef4f"
+SOURCE_SHA256 = "49a0f51daf73181a60d8d1fe5fb777d2a2350c390fe9acf1940d83b36135bfd1"
 
 
 def _validate_edits(edits, template):
@@ -78,8 +78,9 @@ def _lendable(payload, identifier):
 def apply_edits(before, edits, template):
     """Apply validated name/icon edits to the official payload, without packing."""
     slots = _validate_edits(edits, template)
+    model = models.for_template(template)
     _require(type(before) is bytes and len(before) == PAYLOAD_SIZE and
-             _sha(before) == PAYLOAD_SHA, "immutable official payload required")
+             _sha(before) == model.payload_sha, "immutable official payload required")
     after, changes, ranges = bytearray(before), [], []
 
     def write(offset, value, what, edit=None):
@@ -146,18 +147,19 @@ def apply_edits(before, edits, template):
     return bytes(after), changes
 
 
-def _pack_payload(official_bin, before, frames, stop, footer, changed, declared):
+def _pack_payload(official_bin, before, frames, stop, footer, changed, declared, model_id=None):
+    model = models.get(model_id)
     _require(type(changed) is bytes and len(changed) == len(before), "Replacement size differs")
     try:
         output, finished, changes, rewritten = package.pack_change(
             official_bin, before, frames, stop, footer, changed, declared)
-        readback, _, _, _ = _decode(output)
+        readback, _, _, _ = _decode(output, model.id)
         _require(readback == finished, "Result does not match the requested image")
     except package.PackageError as exc:
         raise BuildError(str(exc)) from exc
-    return dict(output=output, input_sha256=INPUT_SHA, output_sha256=_sha(output),
-                payload_sha256_before=PAYLOAD_SHA, payload_sha256_after=_sha(finished),
-                version_word="02 0A 15 1B", payload_changes=changes,
+    return dict(output=output, input_sha256=model.input_sha, output_sha256=_sha(output),
+                payload_sha256_before=model.payload_sha, payload_sha256_after=_sha(finished),
+                version_word=model.version.hex(" ").upper(), payload_changes=changes,
                 container=dict(frames_replaced=rewritten, header_changed=False,
                                footer_fields_changed=["encoded_size", "checksum"]),
                 builder=dict(name="Darkslide firmware builder", version="1.0",
@@ -168,8 +170,9 @@ def _pack_payload(official_bin, before, frames, stop, footer, changed, declared)
 def build(official_bin, edits, template):
     """Compatibility entry: unchanged icon/name result bytes."""
     _validate_edits(edits, template)
-    _require(type(official_bin) is bytes and len(official_bin) == INPUT_SIZE and
-             _sha(official_bin) == INPUT_SHA, "fixed official GR III 2.10 input required")
-    before, frames, stop, footer = _decode(official_bin)
+    model = models.for_template(template)
+    _require(type(official_bin) is bytes and len(official_bin) == model.input_size and
+             _sha(official_bin) == model.input_sha, "fixed official GR III 2.10 input required")
+    before, frames, stop, footer = _decode(official_bin, model.id)
     changed, changes = apply_edits(before, edits, template)
-    return _pack_payload(official_bin, before, frames, stop, footer, changed, changes)
+    return _pack_payload(official_bin, before, frames, stop, footer, changed, changes, model.id)

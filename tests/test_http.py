@@ -1,3 +1,4 @@
+from firmware_registry_fixture import http_identity
 """Local HTTP shell: construction, request order,
 every API route, every error class, reply headers and static files."""
 import contextlib
@@ -64,6 +65,9 @@ class Served(unittest.TestCase):
         cls.app.template = fake_template()
         cls.store = cls.app.store
         cls.sha = cls.store.put_input(FAKE_OFFICIAL)
+        if getattr(cls, "synthetic_identity", True):
+            cls.identity = http_identity(cls.sha,len(FAKE_OFFICIAL),lambda:cls.app.template)
+            cls.identity.__enter__();cls.addClassCleanup(cls.identity.__exit__,None,None,None)
         cls.httpd = LocalServer(("127.0.0.1", 0), cls.app)
         cls.port = cls.httpd.server_address[1]
         cls.loop = threading.Thread(target=cls.httpd.serve_forever, kwargs=dict(poll_interval=0.05), daemon=True)
@@ -269,11 +273,14 @@ class RouteTable(unittest.TestCase):
         ("GET", "/api/builds/%s/manifest" % BID, "api_build_manifest", dict(bid=BID)),
         ("GET", "/api/projects/%s" % PID, "api_get_project", dict(pid=PID)),
         ("PATCH", "/api/projects/%s" % PID, "api_rename_project", dict(pid=PID)),
+        ("PUT", "/api/projects/%s/target-body" % PID, "api_set_target_body", dict(pid=PID)),
         ("PUT", "/api/projects/%s/draft" % PID, "api_put_draft", dict(pid=PID)),
         ("POST", "/api/projects/%s/save" % PID, "api_save_project", dict(pid=PID)),
         ("POST", "/api/projects/%s/assets" % PID, "api_upload_asset", dict(pid=PID)),
         ("GET", "/api/projects/%s/assets/%s" % (PID, DIGEST), "api_get_asset", dict(pid=PID, digest=DIGEST)),
         ("POST", "/api/projects/%s/generate" % PID, "api_generate", dict(pid=PID)),
+        ("GET", "/api/projects/%s/film-check" % PID, "api_film_check", dict(pid=PID)),
+        ("POST", "/api/projects/%s/film-prepare" % PID, "api_film_prepare", dict(pid=PID)),
     ]
 
     def test_every_spec_row_resolves(self):
@@ -612,7 +619,7 @@ class Routes(Served):
         value = self.assertJson(self.call("POST", "/api/projects", {"input_sha256": self.sha}), 200)
         self.assertEqual(value["title"], "未命名")
         self.assertError(self.call("POST", "/api/projects", {"title": "t", "input_sha256": "0" * 64}),
-                         400, "请先导入官方固件")
+                         400, "请求参数错误")
 
     def test_factory(self):
         # a cache whose template_id does not match: factory() serves it, while a real
@@ -622,8 +629,8 @@ class Routes(Served):
         self.assertJson(self.call("GET", "/api/factory/%s" % self.sha), 200, cached)
         self.assertError(self.call("GET", "/api/factory/%s" % ("0" * 64)), 404, "没有导入这个固件")
         res = self.call("GET", "/api/factory/%s" % self.other)
-        self.assertEqual(res.status, 422)
-        self.assertTrue(res.json()["error"].startswith("读取固件失败："))
+        self.assertEqual(res.status, 400)
+        self.assertEqual(res.json()["error"], "请求参数错误")
         self.assertJson(self.call("GET", "/api/factory/%s" % self.sha.upper()), 404, NOT_FOUND_JSON)
 
     def test_factory_icon(self):
@@ -651,7 +658,7 @@ class Routes(Served):
         self.assertTrue(res.json()["error"].startswith("读取固件失败："))
 
     def put_build(self, output=b"generated-output"):
-        manifest = dict(project_id="p_000000000000", output_sha256=sha256(output), created_at="2026-10-11T00:00:00")
+        manifest = dict(project_id="p_000000000000", input_sha256=self.sha, checks=[dict(ok=True)], output_sha256=sha256(output), created_at="2026-10-11T00:00:00")
         return self.store.put_build(output, manifest)["build_id"], output
 
     def test_build_firmware_download(self):
@@ -728,7 +735,7 @@ class Routes(Served):
         pid = self.new_project()
         path = self.store.root / "projects" / pid / "project.json"
         write_json(path, dict(read_json(path), input_sha256="f" * 64))
-        self.assertError(self.call("POST", "/api/projects/%s/generate" % pid), 409, "找不到官方原件，请重新导入")
+        self.assertError(self.call("POST", "/api/projects/%s/generate" % pid), 409, "需要已支持机型的官方原件")
 
     def test_generate_error_is_422_with_checks(self):
         pid = self.new_project()
@@ -742,7 +749,7 @@ class Routes(Served):
     def test_generate_success_stores_the_build(self):
         pid = self.new_project()
         output = b"pretend-generated-firmware"
-        manifest = dict(project_id=pid, output_sha256=sha256(output), created_at="2026-10-11T00:00:00")
+        manifest = dict(project_id=pid, input_sha256=self.sha, checks=[dict(ok=True)], output_sha256=sha256(output), created_at="2026-10-11T00:00:00")
         with mock.patch.object(generate, "run", return_value=(output, manifest)) as run:
             value = self.assertJson(self.call("POST", "/api/projects/%s/generate" % pid), 200)
         store, project, template, official = run.call_args.args
@@ -762,6 +769,35 @@ class Routes(Served):
                              ("GET", "/api/projects/%s/./" % pid), ("GET", "/api//status"),
                              ("GET", "/api/%73tatus")):
             self.assertJson(self.call(method, path, b"" if method != "GET" else None), 404, NOT_FOUND_JSON)
+
+
+class DeleteProject(Served):
+    """User, 2026-10-17: the × on the home list removes a project and the builds it made, nothing else."""
+
+    def test_delete_removes_project_and_its_builds_only(self):
+        from darkslide.store import write_json
+        mine, other = self.new_project("mine"), self.new_project("other")
+        records = []
+        for build_id, pid in (("b_aaaaaaaaaaaa", mine), ("b_bbbbbbbbbbbb", mine), ("b_cccccccccccc", other)):
+            folder = self.store.root / "builds" / build_id
+            folder.mkdir(parents=True)
+            (folder / "fwdc239b.bin").write_bytes(b"x")
+            records.append(dict(build_id=build_id, project_id=pid, output_sha256="0" * 64, created_at="t"))
+        write_json(self.store.root / "builds.json", records)
+        origin = {"Origin": "http://127.0.0.1:%d" % self.port}
+        out = self.assertJson(self.call("POST", "/api/projects/%s/delete" % mine, b"", origin), 200)
+        self.assertEqual(out["deleted"], mine)
+        self.assertEqual(out["builds_removed"], 2)
+        self.assertEqual([b["build_id"] for b in out["builds"]], ["b_cccccccccccc"])
+        self.assertNotIn(mine, [p["id"] for p in out["projects"]])
+        self.assertIn(other, [p["id"] for p in out["projects"]])
+        self.assertFalse((self.store.root / "projects" / mine).exists())
+        self.assertFalse((self.store.root / "builds" / "b_aaaaaaaaaaaa").exists())
+        self.assertTrue((self.store.root / "builds" / "b_cccccccccccc" / "fwdc239b.bin").exists())
+        self.assertEqual(self.call("POST", "/api/projects/%s/delete" % mine, b"", origin).status, 400)
+        self.assertIn(self.call("POST", "/api/projects/..%2Fbuilds/delete", b"", origin).status, (400, 404))
+        self.assertTrue((self.store.root / "builds" / "b_cccccccccccc" / "fwdc239b.bin").exists())
+        self.assertTrue((self.store.root / "projects" / other / "project.json").exists())
 
 
 class Quit(Served):

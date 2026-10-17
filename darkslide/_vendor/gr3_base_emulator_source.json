@@ -1,0 +1,26 @@
+{
+  "project": "idontknownihil/gr3-film-mods",
+  "url": "https://github.com/idontknownihil/gr3-film-mods",
+  "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+  "license": "MIT",
+  "copyright": "Copyright (c) 2026 idontknownihil",
+  "modified_by": "LiorMoment",
+  "files": [
+    {
+      "file": "emu.py",
+      "sha256": "eeada2b440b2e19e8c73a3689d0f457b0bd4af500c7f1f4b45d298b12cb32bc0"
+    },
+    {
+      "file": "run_tuning.py",
+      "sha256": "49ae3ee1e5aafa5526101a10d584183e19d77ba775f872186d747840afae6316"
+    }
+  ],
+  "changes": [
+    "Caller supplies pinned original RTOS via independent fwread; no upstream fw import or CLI.",
+    "Synthetic allocation/call bounds; guest ROM protected RX; generation frame and gamma pointer diagnostics.",
+    "Isolated worker prevents host JIT crashes affecting App; errors reject, no patching/export/device access.",
+    "Retain declared default/zero-service stubs for model comparability; not real white-balance or physical verification.",
+    "Make-phase generation frames and all512 actual base bytes write coverage required; undeclared interrupts rejected.",
+    "Parent and worker verify actual Python package/native-library paths and SHA; isolated import paths and model/schema/scope checks; optional Unicorn2.1.4 runtime only."
+  ]
+}

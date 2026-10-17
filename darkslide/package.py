@@ -1,6 +1,7 @@
 """GR III update-file framing, decoding, and deterministic serialization."""
 from dataclasses import dataclass
 import struct
+from . import models
 
 HEADER_BYTES = 128
 TRAILER_BYTES = 24
@@ -141,16 +142,17 @@ class Package:
     image: bytes
 
     @classmethod
-    def read(cls, wire):
+    def read(cls, wire, model_id=None):
+        model = models.get(model_id)
         demand(type(wire) is bytes, '输入必须是不可变的 bytes')
         demand(len(wire) % 4 == 0 and len(wire) - HEADER_BYTES >= TRAILER_BYTES,
                'File extent is invalid')
         trailer_start = len(wire) - TRAILER_BYTES
         trailer = Trailer.read(wire[trailer_start:])
         demand((trailer.project, trailer.sentinel, trailer.operation) ==
-               (0x024c024c, 0xa55a5aa5, 2), 'Update identity is unsupported')
+               (model.project, 0xa55a5aa5, 2), 'Update identity is unsupported')
         demand(trailer.image_length == EXPECTED_LENGTH, '解码数据长度不受支持')
-        demand(all(wire[index:index + 4] == VERSION for index in (56, 80)), 'Version fields differ')
+        demand(all(wire[index:index + 4] == model.version for index in (56, 80)), 'Version fields differ')
         demand(word_total(wire) == 0, '整文件校验和不为零')
         end = HEADER_BYTES + trailer.stream_length
         padding = (-end) % 4

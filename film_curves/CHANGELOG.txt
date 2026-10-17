@@ -1,0 +1,72 @@
+Changes to spektrafilm-derived data in this folder
+==================================================
+
+2026-10-12  LiorMoment
+  - Folder created. No curve data yet.
+  - Planned: export LUTs from spektrafilm v0.3.4 profiles (film + default print,
+    sRGB in / sRGB out), then fit them to GR III in-camera settings.
+    Each fitted file will be listed here with its source film/print and the
+    fitting method.
+
+2026-10-13  LiorMoment
+  - Adopted eight spektrafilm-derived fits by idontknownihil from gr3-film-mods
+    commit 04d5d5dd6e85d80089c6200bd0f0de5fff2d658f (v10/v11/v14, no hue sectors).
+  - Andrea Volpato authored the source spektrafilm data; idontknownihil fitted
+    the matrix, RGB curves and post matrix; LiorMoment quantized the look matrix
+    to Q13 using the upstream ties-to-even/diagonal-repair algorithm, normalized
+    the GR III 2.10 schema, and added provenance. Curves/post values unchanged.
+  - Raw and derived files, film/print names and checksums are listed in
+    camera_profiles_manifest.json. All data remains CC BY-SA 4.0.
+  - X-Tra400/Portra Endura has a separate ID, not a substitute for Crystal Archive.
+  - No GR IV, Classic Neg, private Adobe/Leica data or foreign firmware gamma dump.
+
+2026-10-13  LiorMoment
+  - Added preview/*.cube: 17^3 approximate preview LUTs for the eight films that
+    have camera data. Exported from spektrafilm v0.3.4 (sRGB->sRGB, 2.47 stops
+    above mid grey, same film/print as each camera fit), resampled from 33^3 by
+    taking every other grid point, rounded to 4 decimals. Preview only, not
+    camera data. Source data by Andrea Volpato; remains CC BY-SA 4.0.
+  - Added catalog.json listing the built-in films shown in the picker.
+
+2026-10-14  LiorMoment
+  - Added eight more looks fitted by DARKSLIDE GR itself (camera/<id>.json with
+    provenance.kind "darkslide_fit", preview/<id>.cube, catalog.json entries):
+    portra160, portra800, portra800push1, portra800push2 (Portra Endura),
+    c200 (Crystal Archive Type II), 5203 = Vision3 50D, 5213 = Vision3 200T,
+    verita200d (Kodak 2383). Source: spektrafilm v0.3.4 sRGB->sRGB 33^3 exports
+    at 2.47 stops above mid grey. Fitting: RGB alternating matrix/curve fit,
+    post-curve matrix, then a CIEDE2000 perceptual refit (ported from
+    gr3-film-mods cube_fit/cca1_fit/lab_fit, MIT). The camera base gamma used
+    for fitting is read at run time from the official firmware and not stored.
+    Per-film source SHA-256, fit level and colour difference:
+    camera_profiles_darkslide_fits.json. Not verified on a camera.
+    Source data by Andrea Volpato; remains CC BY-SA 4.0.
+  - catalog.json credit now says some camera data are DARKSLIDE GR's own fits.
+
+2026-10-14 (later)  LiorMoment
+  - Fitting now stays inside the factory range read at run time from the official
+    firmware (factory_envelope: look-matrix coefficients and row sums, curve steps),
+    instead of refusing afterwards. Five looks were above that range and were refitted
+    inside it with DARKSLIDE GR's fitter from the same spektrafilm v0.3.4 sRGB->sRGB
+    exports: ektar100, xtra400_portraendura (previously idontknownihil's upstream fits),
+    5213, portra800push1, portra800push2. Colour difference to the export changed by at
+    most 0.16 (CIEDE2000 mean); see camera_profiles_darkslide_fits.json.
+  - The two upstream fits stay archived in upstream_gr3_fits/ and in
+    camera_profiles_manifest.json with "in_use": false and the reason.
+    Source data by Andrea Volpato; remains CC BY-SA 4.0.
+
+2026-10-15  LiorMoment
+  - All 16 looks re-exported the same way (spektrafilm v0.3.4 sRGB->sRGB 33^3 at
+    2.47 stops above mid grey, print contrast unchanged), then the paper white
+    (0.81-0.85 before) set to 0.97 by one linear-light scale, like a scanner's white
+    point. The plain exports kept the paper white, so on screen they looked dark and
+    grey. The white point step is our own post-process; spektrafilm's files are
+    unchanged.
+  - preview/*.cube rebuilt; all 16 camera/<id>.json refitted by DARKSLIDE GR inside
+    the factory range (camera_profiles_darkslide_fits.json lists settings, fit level
+    and colour difference per look).
+  - idontknownihil's upstream fits targeted the plain exports; they are no longer
+    used ("in_use": false with the reason in camera_profiles_manifest.json) and stay
+    archived in upstream_gr3_fits/.
+  - catalog.json credit updated. Not verified on a camera.
+    Source data by Andrea Volpato; remains CC BY-SA 4.0.

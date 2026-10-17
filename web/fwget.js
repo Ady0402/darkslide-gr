@@ -1,14 +1,24 @@
 // "No official firmware?" link on the start page: after the user starts the
 // download, the hint turns into the next step and the drop zone is outlined.
 (function () {
-  const link = document.getElementById("fwDownload");
-  if (!link) return;
-  link.addEventListener("click", () => {
-    const line = document.getElementById("fwGet");
+  const line = document.getElementById("fwGet");
+  if (!line) return;
+  const orig = line.innerHTML;
+  // Delegated, because the line is rebuilt: after a click it only names the file the link gave
+  // (gr3_v210.zip or gr3x_v160.zip), and switching series puts the link back (window.resetFwGet).
+  line.addEventListener("click", (e) => {
+    const link = e.target.closest("#fwDownload");
+    if (!link) return;
     line.classList.add("ready");
-    line.textContent = "下载好了？直接把 gr3_v210.zip 拖进来。";
+    line.textContent = "下载好了？直接把 " + link.href.split("/").pop() + " 拖进来。";
     document.getElementById("drop").classList.add("await");
   });
+  window.resetFwGet = () => {
+    if (!line.classList.contains("ready")) return;
+    line.classList.remove("ready");
+    line.innerHTML = orig;
+    document.getElementById("drop").classList.remove("await");
+  };
   // Any import attempt ends the waiting state.
   const input = document.getElementById("fileInput");
   const clear = () => document.getElementById("drop").classList.remove("await");

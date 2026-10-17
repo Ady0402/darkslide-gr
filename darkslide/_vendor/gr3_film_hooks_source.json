@@ -1,0 +1,28 @@
+{
+  "project": "idontknownihil/gr3-film-mods",
+  "url": "https://github.com/idontknownihil/gr3-film-mods",
+  "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+  "license": "MIT",
+  "source_file": "film_cave.py",
+  "source_sha256": "84c8657c0a6ea64d7a8cee87309a9ffd0ca1a1975a449e119379f108202c2af3",
+  "selected_functions": [
+    "fill_src",
+    "csp_src",
+    "csp_entry"
+  ],
+  "changes": [
+    "Only blocked curve-switch and post-matrix functions selected; no getter/knot fitter/whole writer/codec imported.",
+    "Explicit exception replaces removable csp_entry assertion. App validation rejects noninteger post coefficients before calling.",
+    "fill_src Bleach pointer-set uses existing full 256-point library9..11 rather than knot table; misleading knot comment corrected."
+  ],
+  "modifier": "LiorMoment",
+  "scope": "Four original replacement modes; no Vivid, RAW NR, icons, names, GPL codec or GR IV data",
+  "additional_adopted_source": {
+    "path": "armasm.py",
+    "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+    "sha256": "5b65554348632324fb7b08bbed724f645cdcecf6eac86535d0c305ea784c99e4",
+    "local_file": "film_arm_assemble.py",
+    "adopted": "abs branch line preprocessing and condition map",
+    "modifications": "clang/ELF extraction and strict branch/directive/length checks replace llvm-mc/objcopy; source guard assertions replaced with explicit errors; installed LLVM lookup supports explicit override, PATH and platform locations"
+  }
+}

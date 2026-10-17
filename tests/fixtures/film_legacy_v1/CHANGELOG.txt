@@ -1,0 +1,29 @@
+Changes to spektrafilm-derived data in this folder
+==================================================
+
+2026-10-12  LiorMoment
+  - Folder created. No curve data yet.
+  - Planned: export LUTs from spektrafilm v0.3.4 profiles (film + default print,
+    sRGB in / sRGB out), then fit them to GR III in-camera settings.
+    Each fitted file will be listed here with its source film/print and the
+    fitting method.
+
+2026-10-13  LiorMoment
+  - Adopted eight spektrafilm-derived fits by idontknownihil from gr3-film-mods
+    commit 04d5d5dd6e85d80089c6200bd0f0de5fff2d658f (v10/v11/v14, no hue sectors).
+  - Andrea Volpato authored the source spektrafilm data; idontknownihil fitted
+    the matrix, RGB curves and post matrix; LiorMoment quantized the look matrix
+    to Q13 using the upstream ties-to-even/diagonal-repair algorithm, normalized
+    the GR III 2.10 schema, and added provenance. Curves/post values unchanged.
+  - Raw and derived files, film/print names and checksums are listed in
+    camera_profiles_manifest.json. All data remains CC BY-SA 4.0.
+  - X-Tra400/Portra Endura has a separate ID, not a substitute for Crystal Archive.
+  - No GR IV, Classic Neg, private Adobe/Leica data or foreign firmware gamma dump.
+
+2026-10-13  LiorMoment
+  - Added preview/*.cube: 17^3 approximate preview LUTs for the eight films that
+    have camera data. Exported from spektrafilm v0.3.4 (sRGB->sRGB, 2.47 stops
+    above mid grey, same film/print as each camera fit), resampled from 33^3 by
+    taking every other grid point, rounded to 4 decimals. Preview only, not
+    camera data. Source data by Andrea Volpato; remains CC BY-SA 4.0.
+  - Added catalog.json listing the built-in films shown in the picker.

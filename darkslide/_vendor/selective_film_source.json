@@ -1,0 +1,32 @@
+{
+  "project": "idontknownihil/gr3-film-mods",
+  "url": "https://github.com/idontknownihil/gr3-film-mods",
+  "commit": "04d5d5dd6e85d80089c6200bd0f0de5fff2d658f",
+  "license": "MIT",
+  "modified_by": "LiorMoment",
+  "adopted": [
+    {
+      "file": "make_slots.py",
+      "part": "stock curve pointer restoration and fallback to original Cross chain",
+      "sha256": "30f44121bb151865c2a953e2fb12a89e33380016326e40d2f98e7b78926831c2"
+    },
+    {
+      "file": "make_films.py",
+      "part": "HDR/Retro effect sites and replacement instructions",
+      "sha256": "d886f80fc2ef1f00e24be2435973e35ac875abb0a0c110808ba968526c7e6488"
+    },
+    {
+      "file": "make_slots16.py",
+      "part": "zero-storage location as a guarded layout lead only, no hue sectors or GR IV data",
+      "sha256": "7ee4e90f65a2c87a1558ef8cd4818889471e66642ee54aaa489b0a9dd03983e5"
+    }
+  ],
+  "local_changes": [
+    "Only selected native tones are matched; no new menu enum, names, icons or RAW NR changes.",
+    "Keep all 256 samples; no knot fitting or getter patch.",
+    "Private records and matrices in zero-guarded storage, with original standard initialization tail.",
+    "Missing profiles and unsupported request data reject; exported writer availability stays false.",
+    "Preserve incoming R7 with a balanced temporary 4-byte stack slot before stock-pointer restore; both selected return and original fallback restore it. Original Cross first reads R7+0x797; no new IP/R12 clobber."
+  ],
+  "license_file": "GR3_FILM_MODS_LICENSE.txt"
+}

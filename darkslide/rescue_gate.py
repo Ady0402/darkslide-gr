@@ -22,7 +22,8 @@ third-party code.
 """
 import struct
 
-from . import fwread
+from . import fwread, models
+import hashlib
 
 VERSION_WORD = b"\x02\x0a\x15\x1b"
 VERSION_OFFSETS = (0x38, 0x50)
@@ -110,7 +111,7 @@ def gate_payloads(before, after):
     return checks
 
 
-def gate(official, output):
+def gate(official, output, model_id=None):
     """Checks on the raw files. Failures never authorize a download."""
     checks = []
 
@@ -118,11 +119,13 @@ def gate(official, output):
         checks.append(dict(id=cid, title=title, ok=bool(ok), detail=detail))
 
     try:
+        model = models.get(model_id)
+        add("rescue_input_identity", "官方原件机型身份", hashlib.sha256(official).hexdigest() == model.input_sha)
         _need(type(official) is bytes and type(output) is bytes and len(output) >= 0x80, "inputs")
         words = [output[o:o + 4] for o in VERSION_OFFSETS]
-        add("rescue_version", "版本字段仍是 2.10（02 0A 15 1B）：按代码分析，官方 2.10 包不会因版本更旧被拒（同版本刷回已在一台 GR III 上实测）",
-            all(w == VERSION_WORD for w in words) and
-            all(official[o:o + 4] == VERSION_WORD for o in VERSION_OFFSETS),
+        add("rescue_version", ("版本字段保持 %s 原值；仅静态核对，IIIx 同版本回刷未实测" % model.firmware) if model == models.GR3X else "版本字段仍是 2.10（02 0A 15 1B）：按代码分析，官方 2.10 包不会因版本更旧被拒（同版本刷回已在一台 GR III 上实测）",
+            all(w == model.version for w in words) and
+            all(official[o:o + 4] == model.version for o in VERSION_OFFSETS),
             " / ".join(w.hex() for w in words))
         before, after = fwread.unpack(official), fwread.unpack(output)
         checks += gate_payloads(before, after)

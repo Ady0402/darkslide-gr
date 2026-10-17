@@ -1,6 +1,6 @@
 """Negative Film detail menu: add the grain item (count 9 -> 10, append flag 2 + item 15). Returns the changed payload; no packing."""
 import struct
-from . import edit_core as builder
+from . import edit_core as builder, models
 
 
 def validate_request(edit):
@@ -11,9 +11,10 @@ def validate_request(edit):
                      'grain requires built-in negative slot12/mode22; custom banks unsupported')
 
 
-def apply(before):
+def apply(before, model_id=None):
+    model = models.get(model_id)
     builder._require(type(before) is bytes and len(before) == builder.PAYLOAD_SIZE and
-                     builder._sha(before) == builder.PAYLOAD_SHA, 'immutable official payload required')
+                     builder._sha(before) == model.payload_sha, 'immutable official payload required')
     row = 0x53B348BC - 0x53000000 + 0x10870
     start = 0x53B3500C - 0x53000000 + 0x10870
     tail = start + 18

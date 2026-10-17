@@ -2,7 +2,7 @@ from . import package
 """GR III 2.10 A-drive shutdown builder; returns bytes, never writes a file.
 
 The normal type-2 updater skips B-drive RES records. Install the existing
-Diary record in A and use its original descriptor for four requested entries.
+Diary record in A and use its original descriptor for five requested entries.
 This changes neither partition parameters nor RES record lengths/count.
 Caller must independently decode the JPEG and verify the returned container.
 Whether the camera shows the picture is confirmed only by flashing it.
@@ -27,10 +27,10 @@ def need(ok, message):
 def sha(data):
     return hashlib.sha256(data).hexdigest()
 
-def _apply_a_shutdown(decoded, jpeg):
+def _apply_a_shutdown(decoded, jpeg, model_id=None):
     """Pinned official payload only; checksum intentionally left to builder."""
     need(type(jpeg) is bytes, 'JPEG bytes required; None is not restoration')
-    changed, details = shared.apply_shared(decoded, jpeg)
+    changed, details = shared.apply_shared(decoded, jpeg, model_id)
     path_at = shared.off(PATH_VA, len(OLD_PATH) + 1)
     need(decoded[path_at:path_at + len(OLD_PATH) + 1] == OLD_PATH + b'\0',
          'original RTOS Diary path')
@@ -51,10 +51,10 @@ def _apply_a_shutdown(decoded, jpeg):
                    device_installation_verified=False)
     return bytes(updated), details
 
-def apply_a_shutdown(decoded, jpeg):
+def apply_a_shutdown(decoded, jpeg, model_id=None):
     """Normalize validation failures from the pinned shared dependency."""
     try:
-        return _apply_a_shutdown(decoded, jpeg)
+        return _apply_a_shutdown(decoded, jpeg, model_id)
     except shared.SharedSlotError as exc:
         raise AShutdownError(str(exc)) from exc
 

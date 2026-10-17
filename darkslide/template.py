@@ -56,7 +56,7 @@ def load_detail(template, name=None):
     """Detail-menu stages live in a sidecar file (<template>.detail.json) so the
     main template keeps exactly the fields the pinned generation core accepts."""
     name = name or template["id"]
-    path = TEMPLATE_ROOT / (name if name.endswith(".json") else "gr3_v210.detail.json")
+    path = TEMPLATE_ROOT / (name if name.endswith(".json") else ("gr3x_v160.detail.json" if template["id"] == "gr3x-1.60-reviewed-1" else "gr3_v210.detail.json"))
     if not path.exists():
         return dict(schema=1, template_id=template["id"], grain={}, grain_note={})
     value = json.loads(path.read_text(encoding="utf-8"))

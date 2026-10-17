@@ -1,0 +1,174 @@
+{
+ "schema": 1,
+ "fitter": "darkslide-film-fit-v2",
+ "license": "CC-BY-SA-4.0",
+ "authors": [
+  "Andrea Volpato"
+ ],
+ "modified_by": "LiorMoment",
+ "base_model_id": "gr3-210-upstream-neutral-stubbed-v2",
+ "note": "Camera parameters fitted by Darkslide from spektrafilm sRGB->sRGB exports (since 2026-10-14: paper white set to 0.97 (linear-light scale), print contrast unchanged); base gamma read at run time from the user's own firmware, not stored. Every fit is made inside the factory range read from the firmware (factory_envelope).",
+ "native_effect_verified": false,
+ "profiles": [
+  {
+   "id": "portra400",
+   "source": "portra400_portraendura",
+   "source_sha256": "28cf8cda6241f8a6fe77d17430a2bfbb74232eef8f68865e6a7cbd1d3903aea9",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.16,
+   "de_p95": 5.16,
+   "storage_max_u14": 60
+  },
+  {
+   "id": "gold200",
+   "source": "gold200_portraendura",
+   "source_sha256": "b389b7f54ebc582771940622ea326d3fb2496f32de51f0bc079f3a173bb22707",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.12,
+   "de_p95": 5.17,
+   "storage_max_u14": 30
+  },
+  {
+   "id": "ektar100",
+   "source": "ektar100_portraendura",
+   "source_sha256": "67bc3b563f3d481dc58a0f1da5a2d77bfc50db603a3e42e56460f6d9ac1ed93d",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.43,
+   "de_p95": 5.98,
+   "storage_max_u14": 48
+  },
+  {
+   "id": "pro400h",
+   "source": "pro400h_crystalarchive",
+   "source_sha256": "c613434c1d4aeaf6bdbc23cc20884aec235c6c73cc5a6295ee28b5fff4666e69",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "高",
+   "de_mean": 1.92,
+   "de_p95": 4.47,
+   "storage_max_u14": 41
+  },
+  {
+   "id": "ultramax400",
+   "source": "ultramax400_portraendura",
+   "source_sha256": "89a596b471f5db506da48cab761d126ae51f51802db422a14b66712e3387e2fe",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.0,
+   "de_p95": 4.49,
+   "storage_max_u14": 56
+  },
+  {
+   "id": "xtra400_portraendura",
+   "source": "xtra400_portraendura",
+   "source_sha256": "58e600e98363ad3af0c7c7349e12fe856c74ac6232c7bcb0aa6e8da6b4a38d68",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.4,
+   "de_p95": 5.63,
+   "storage_max_u14": 60
+  },
+  {
+   "id": "5207",
+   "source": "vision3250d_2383",
+   "source_sha256": "7266793184a2afc6ae1b11d3afd70f7c344cd4de23b7c7c821ea192842841042",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.14,
+   "de_p95": 4.9,
+   "storage_max_u14": 38
+  },
+  {
+   "id": "5219",
+   "source": "vision3500t_2383",
+   "source_sha256": "c86a467a740ccb28d95b8136c7bdaceff4f3877d6d8f22781d6e969136ecfc60",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.21,
+   "de_p95": 5.42,
+   "storage_max_u14": 54
+  },
+  {
+   "id": "portra160",
+   "source": "portra160_portraendura",
+   "source_sha256": "19c2ee2ac3eb043c6325e5d30b1f69aa5924f594c0396d08fc305776bedcfe17",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.21,
+   "de_p95": 5.31,
+   "storage_max_u14": 38
+  },
+  {
+   "id": "portra800",
+   "source": "portra800_portraendura",
+   "source_sha256": "9c6aa894434a2a1ea5bb1f2ef8f3b5e51feb69c04ca091b22ebbf583922dd642",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.04,
+   "de_p95": 4.72,
+   "storage_max_u14": 33
+  },
+  {
+   "id": "portra800push1",
+   "source": "portra800push1_portraendura",
+   "source_sha256": "fc3c02caf110b6116923251a991fba535a6882822fe554a3c4ec5f3ed1f187c8",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.71,
+   "de_p95": 6.13,
+   "storage_max_u14": 53
+  },
+  {
+   "id": "portra800push2",
+   "source": "portra800push2_portraendura",
+   "source_sha256": "8eb850b9c216f4dd066090524720fd09ef85caacae1f40343f97581226dee098",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 3.17,
+   "de_p95": 7.53,
+   "storage_max_u14": 70
+  },
+  {
+   "id": "c200",
+   "source": "c200_crystalarchive",
+   "source_sha256": "f64b2a8188adc572b8f11e40b991932415da7e4b8200dd92267e2cb34be08048",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "高",
+   "de_mean": 1.98,
+   "de_p95": 4.87,
+   "storage_max_u14": 31
+  },
+  {
+   "id": "5203",
+   "source": "vision350d_2383",
+   "source_sha256": "ffbfb82f48233868862cc2f5d30d2869661256e459834a0b56d16024c0ea423a",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.27,
+   "de_p95": 5.22,
+   "storage_max_u14": 35
+  },
+  {
+   "id": "5213",
+   "source": "vision3200t_2383",
+   "source_sha256": "a00c71c9b9cf67cf930fd5f847f765571aa6d6025f12e32e47f87e7848768d24",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.31,
+   "de_p95": 5.39,
+   "storage_max_u14": 92
+  },
+  {
+   "id": "verita200d",
+   "source": "verita200d_2383",
+   "source_sha256": "fe072e2d56e855e2bb73bc29e42c95c52e20af89bf855448f6af38d4a4c0bd6f",
+   "settings": "paper white set to 0.97 (linear-light scale), print contrast unchanged",
+   "level": "中",
+   "de_mean": 2.4,
+   "de_p95": 5.48,
+   "storage_max_u14": 35
+  }
+ ]
+}

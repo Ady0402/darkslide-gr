@@ -12,7 +12,7 @@ body:
     id: version
     attributes:
       label: Darkslide 版本 / Darkslide version
-      placeholder: "0.3.0"
+      placeholder: "1.0.0"
     validations:
       required: true
 
@@ -22,7 +22,9 @@ body:
       label: 问题出现在哪一步 / Where did it happen
       options:
         - 启动 / Starting the tool
+        - 选择相机型号 / Choosing the camera model
         - 导入固件 / Importing firmware
+        - 胶片、调色或拟合 / Films, grading or fitting
         - 编辑图标或预设名 / Editing icons or preset names
         - 编辑关机画面 / Editing the shutdown screen
         - 负片颗粒 / Negative Film grain
@@ -36,7 +38,7 @@ body:
     id: input_sha
     attributes:
       label: 输入文件 SHA-256 / Input file SHA-256
-      description: "shasum -a 256 fwdc239b.bin"
+      description: "shasum -a 256 fwdc239b.bin（GR IIIx：fwdc243b.bin）"
     validations:
       required: true
 
