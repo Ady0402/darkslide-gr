@@ -26,7 +26,7 @@ CHECK_TITLES = {
     "a_path_five_requests_fixed_slot_jpeg": "关机图：五个入口指向同一位置、A 盘路径、图片只多出填充段",
     "entire_payload_matches_independent_request": "整份解码数据与独立推导的预期逐字节一致（没有任何越界改动）",
     "payload_sha": "解码数据 SHA 与生成记录一致",
-    "readback_icons_names": "读回 14 个预设的图标和预设名（英文、简中、日文）",
+    "readback_icons_names": "读回 14 个预设的图标和预设名（英文、简中、繁中、日文）",
     "grain_menu_expected": "负片颗粒菜单项、原九项和相邻字符串独立核对",
     "film_requested_data": "胶片记录、矩阵和完整曲线与所选数据一致",
     "film_code_fields_and_targets": "胶片跳转、选择和后矩阵指令独立核对",

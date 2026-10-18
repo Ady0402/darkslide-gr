@@ -247,8 +247,9 @@ div.chip { cursor: default; }
 
 /* zoom compare */
 .dialog.zoom-dialog { max-width: 1000px; }
-.zoom-frame { position: relative; width: 100%; aspect-ratio: 3 / 2; max-height: 70vh; overflow: hidden; background: #111; }
-.zoom-after, .zoom-before { position: absolute; inset: 0; background: #111 center / cover no-repeat; }
+/* --ar is the photo's own aspect (set from JS); contain never crops it, portrait included. */
+.zoom-frame { position: relative; width: min(100%, calc(70vh * var(--ar, 1.5))); margin: 0 auto; aspect-ratio: var(--ar, 1.5); overflow: hidden; background: #111; }
+.zoom-after, .zoom-before { position: absolute; inset: 0; background: #111 center / contain no-repeat; }
 .zoom-before { clip-path: inset(0 50% 0 0); }
 .zoom-divider { position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: #fff; box-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
 .zoom-frame .zl { left: 10px; top: auto; bottom: 10px; }
@@ -439,8 +440,9 @@ div.chip { cursor: default; }
 .v1-note { font-size: 11px; color: var(--dim2); }
 .v1-local { margin-left: auto; }
 .v1-stage { background: #1C1C1B; display: flex; justify-content: center; }
-.v1-frame { position: relative; height: min(360px, 42vh); aspect-ratio: 3 / 2; max-width: 100%; overflow: hidden; cursor: zoom-in; display: block; }
-.v1-layer { position: absolute; inset: 0; background: #111 center / cover no-repeat; }
+.v1-frame { position: relative; height: min(360px, 42vh); aspect-ratio: var(--ar, 1.5); max-width: 100%; overflow: hidden; cursor: zoom-in; display: block; }
+.v1-frame.tall { height: min(560px, 62vh); }
+.v1-layer { position: absolute; inset: 0; background: #111 center / contain no-repeat; }
 .v1-before { clip-path: inset(0 50% 0 0); }
 .v1-divider { position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: #fff; box-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
 .v1-tag { position: absolute; bottom: 10px; font-size: 10px; padding: 2px 6px; z-index: 2; }

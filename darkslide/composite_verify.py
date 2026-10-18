@@ -213,6 +213,7 @@ disk here, and passing checks does not change the generation availability gate.
                       type(edit['string_id']) is int and edit['string_id'] == string and
                       2 <= no <= 12 and slot['rename'] in ('test', 'open'), 'name scope')
                 en, zh = p.string(string, 'en'), p.string(string, 'zh-CN')
+                tw = p.string(string, 'zh-TW')
                 text = edit['text']
                 _need(type(text) is str and 0 < len(text) and
                       all(32 <= ord(c) <= 126 for c in text) and text == text.strip(' ') and
@@ -224,6 +225,7 @@ disk here, and passing checks does not change the generation availability gate.
                     write(en['record_offset'], bytes((len(text) + 1,)))
                     pointer = before[en['record_offset'] + 4:en['record_offset'] + 8]
                     write(zh['record_offset'], bytes((len(text) + 1, 1, 0, 0)) + pointer)
+                    write(tw['record_offset'], bytes((len(text) + 1, 1, 0, 0)) + pointer)
                 else:
                     home = _longer_name_home(p, string)
                     _need(home is not None and len(value) <= home[2] * 2 and
@@ -234,6 +236,7 @@ disk here, and passing checks does not change the generation availability gate.
                     record = bytes((len(text) + 1, 1, 0, 0)) + struct.pack('<I', address)
                     write(en['record_offset'], record)
                     write(zh['record_offset'], record)
+                    write(tw['record_offset'], record)
         add('icon_name_expected', True)
         if film_edits and film_layout == 'inplace_history_cache_exit_v29':
             evidence, actual_windows = film_backend.readback(bytes(before), bytes(after), film_edits, film_profiles)
@@ -273,9 +276,9 @@ disk here, and passing checks does not change the generation availability gate.
             _, got = q.icon_pixels(icon)
             at = info['payload_offset']
             semantic_ok = semantic_ok and got == expected[at:at + len(raw)]
-            for language in ('en', 'zh-CN', 'ja'):
+            for language in ('en', 'zh-CN', 'zh-TW', 'ja'):
                 want = (name_requests[no]['text'] if no in name_requests and
-                        language in ('en', 'zh-CN') else p.string(string, language)['text'])
+                        language in ('en', 'zh-CN', 'zh-TW') else p.string(string, language)['text'])
                 semantic_ok = semantic_ok and q.string(string, language)['text'] == want
         add('readback_icons_names', semantic_ok)
         records = _resources(before)

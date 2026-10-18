@@ -124,6 +124,7 @@ def apply_edits(before, edits, template):
             _require(type(text) is str, "预设名必须为字符串")
             en = _string(before, edit["string_id"], 1)
             zh = _string(before, edit["string_id"], 19)
+            tw = _string(before, edit["string_id"], 18)
             r, t, count, va, old = en
             _require(old == slots[edit["slot"] - 1]["factory_en"], "原厂英文名与模板不符")
             _require(0 < len(text) and all(32 <= ord(c) <= 126 for c in text) and
@@ -133,6 +134,7 @@ def apply_edits(before, edits, template):
                 write(t, new + bytes(count * 2 - len(new)), "name_en_text", edit)
                 write(r, bytes((len(text) + 1,)), "name_en_length", edit)
                 write(zh[0], bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", va), "name_zh_CN_record", edit)
+                write(tw[0], bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", va), "name_zh_TW_record", edit)
             else:  # longer: use the longest storage only this string uses, in another language
                 lent = _lendable(before, edit["string_id"])
                 _require(lent is not None, "没有可借用的预设名存储")
@@ -143,6 +145,7 @@ def apply_edits(before, edits, template):
                 write(lr, bytes((len(text) + 1,)), "name_lent_length", edit)
                 write(r, record, "name_en_record", edit)
                 write(zh[0], record, "name_zh_CN_record", edit)
+                write(tw[0], record, "name_zh_TW_record", edit)
     _require(changes, "改动未改变任何字节")
     return bytes(after), changes
 

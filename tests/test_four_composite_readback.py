@@ -40,8 +40,9 @@ class CompositeFixture:
             body[at:at + 6400] = pixels
             self.icons[slot['icon_id']] = at
             for language, text in (('en', slot['factory_en']),
-                                   ('zh-CN', 'Z' + str(no)), ('ja', 'J' + str(no))):
-                index = (no - 1) * 3 + ('en', 'zh-CN', 'ja').index(language)
+                                   ('zh-CN', 'Z' + str(no)), ('zh-TW', 'T' + str(no)),
+                                   ('ja', 'J' + str(no))):
+                index = (no - 1) * 4 + ('en', 'zh-CN', 'zh-TW', 'ja').index(language)
                 rec, text_at = 0x1000 + index * 8, 0x4000 + index * 128
                 value = text.encode('utf-16-le') + bytes(2)
                 body[rec:rec + 8] = bytes((len(text) + 1, 1, 0, 0)) + struct.pack('<I', text_at)
@@ -107,12 +108,14 @@ class CompositeFixture:
             else:
                 rec = self.strings[(edit['string_id'], 'en')]
                 zh = self.strings[(edit['string_id'], 'zh-CN')]
+                tw = self.strings[(edit['string_id'], 'zh-TW')]
                 at = struct.unpack_from('<I', body, rec + 4)[0]
                 capacity = body[rec] * 2
                 value = edit['text'].encode('utf-16-le') + bytes(2)
                 body[at:at + capacity] = value + bytes(capacity - len(value))
                 body[rec] = len(edit['text']) + 1
                 body[zh:zh + 8] = bytes((len(edit['text']) + 1, 1, 0, 0)) + body[rec + 4:rec + 8]
+                body[tw:tw + 8] = bytes((len(edit['text']) + 1, 1, 0, 0)) + body[rec + 4:rec + 8]
         return self.result(self.finalize(body))
 
     def result(self, after):

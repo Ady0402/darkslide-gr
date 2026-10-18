@@ -123,9 +123,9 @@ def verify(official_bin, result, edits, template):
         if g_px != want:
             icon_ok = False
             notes.append("%s 图标不一致" % slot["name"])
-        for lang in ("en", "zh-CN", "ja"):
+        for lang in ("en", "zh-CN", "zh-TW", "ja"):
             got = p1.string(slot["string_id"], lang)["text"]
-            if no in name_edits and lang in ("en", "zh-CN"):
+            if no in name_edits and lang in ("en", "zh-CN", "zh-TW"):
                 exp = name_edits[no]["text"]
             else:
                 exp = p0.string(slot["string_id"], lang)["text"]
@@ -133,7 +133,7 @@ def verify(official_bin, result, edits, template):
                 name_ok = False
                 notes.append("%s %s 预设名不一致" % (slot["name"], lang))
     add("icons", "读回图标：改动的与设定一致，其余与原厂一致", icon_ok, "；".join(n for n in notes if "图标" in n))
-    add("names", "读回预设名：英文和简中为新名，其他语言保持原厂", name_ok, "；".join(n for n in notes if "预设名" in n))
+    add("names", "读回预设名：英文、简中和繁中为新名，其他语言保持原厂", name_ok, "；".join(n for n in notes if "预设名" in n))
     grain_edits = [e for e in edits if e["kind"] == "grain_menu"]
     want = "opened" if grain_edits else "factory"
     try:

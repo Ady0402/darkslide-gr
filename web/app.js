@@ -1220,7 +1220,13 @@ function renderPresetCard() {
 
 // The preview shows the user's own photo only (kept in this tab, never uploaded);
 // without one the frame stays black and offers 「换照片」.
-const samples = { mine: null };
+const samples = { mine: null, ar: 0 };  // ar: the photo's width / height once known
+
+function frameShape(frame) {
+  const ar = samples.ar || 1.5;
+  frame.style.setProperty("--ar", String(ar));
+  return ar < 1 ? " tall" : "";
+}
 
 function sceneBackground() {
   return samples.mine ? 'url("' + samples.mine + '")' : "#111";
@@ -1237,12 +1243,12 @@ function renderSamples() {
   $("sampleEmpty").hidden = !!samples.mine;
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
-  const bg = sceneBackground() + " center / cover no-repeat";
+  const bg = sceneBackground() + " center / contain no-repeat";
   const after = filmBackground(edit);
   $("sampleBefore").style.background = bg;
   $("sampleAfter").style.background = after || bg;
   for (const b of $("viewBtns").children) { const on = b.dataset.view === state.view; b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); }
-  $("sampleFrame").className = "v1-frame " + state.view;
+  $("sampleFrame").className = "v1-frame " + state.view + frameShape($("sampleFrame"));
   const previewFailure = state.view === "camera" && window.DarkslideFilm.previewError(s.no, edit);
   if (previewFailure && $("zoomDialog").open) $("zoomDialog").close();
   $("viewNote").textContent = previewFailure ? "相机预览不可用：" + previewFailure + "。当前显示原图；可切换到调后查看原值效果。" : VIEW_NOTES[state.view];
@@ -1255,13 +1261,14 @@ function renderSamples() {
 // The chosen film's approximate preview, shown on the user's own photo only.
 function filmBackground(edit) {
   const url = window.DarkslideFilm.previewUrl(edit, state.view === "camera", slotOf(state.sel).no);
-  return url ? 'url("' + url + '") center / cover no-repeat' : null;
+  return url ? 'url("' + url + '") center / contain no-repeat' : null;
 }
 
 function openZoom() {
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
-  const bg = sceneBackground() + " center / cover no-repeat";
+  const bg = sceneBackground() + " center / contain no-repeat";
+  frameShape($("zoomFrame"));
   $("zoomTitle").textContent = (edit.name !== undefined ? edit.name : s.name) + " · " + "我的照片";
   if (state.view === "camera" && window.DarkslideFilm.previewError(s.no, edit)) {
     toast("相机预览不可用，请切换到调后查看原值效果", true);
@@ -1466,6 +1473,10 @@ function wireShutdown() {
     if (!f) return;
     if (samples.mine) URL.revokeObjectURL(samples.mine);
     samples.mine = URL.createObjectURL(f);   // stays in this browser tab; never uploaded
+    samples.ar = 0;
+    const probe = new Image();  // naturalWidth/Height follow EXIF orientation, like the backgrounds
+    probe.onload = () => { if (probe.src === samples.mine) { samples.ar = probe.naturalWidth / probe.naturalHeight || 0; renderSamples(); } };
+    probe.src = samples.mine;
     renderSamples();
   });
   $("btnSdUpload").addEventListener("click", () => $("sdInput").click());
