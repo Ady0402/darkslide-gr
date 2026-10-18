@@ -1223,9 +1223,8 @@ function renderPresetCard() {
 const samples = { mine: null, ar: 0 };  // ar: the photo's width / height once known
 
 function frameShape(frame) {
-  const ar = samples.ar || 1.5;
-  frame.style.setProperty("--ar", String(ar));
-  return ar < 1 ? " tall" : "";
+  frame.style.setProperty("--ar", String(samples.ar || 1.5));
+  return "";
 }
 
 function sceneBackground() {

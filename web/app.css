@@ -439,9 +439,10 @@ div.chip { cursor: default; }
 .v1-seg button.on { background: var(--text); color: var(--bg); }
 .v1-note { font-size: 11px; color: var(--dim2); }
 .v1-local { margin-left: auto; }
-.v1-stage { background: #1C1C1B; display: flex; justify-content: center; }
-.v1-frame { position: relative; height: min(360px, 42vh); aspect-ratio: var(--ar, 1.5); max-width: 100%; overflow: hidden; cursor: zoom-in; display: block; }
-.v1-frame.tall { height: min(560px, 62vh); }
+/* The stage fills the visible height under the bench header (scroll for the panels below);
+   the frame is the largest box of the photo's own aspect (--ar) that fits inside it. */
+.v1-stage { background: #1C1C1B; display: flex; justify-content: center; align-items: center; height: max(320px, calc(100vh - 205px)); container-type: size; }
+.v1-frame { position: relative; height: min(100cqh, 100cqw / var(--ar, 1.5)); aspect-ratio: var(--ar, 1.5); overflow: hidden; cursor: zoom-in; display: block; }
 .v1-layer { position: absolute; inset: 0; background: #111 center / contain no-repeat; }
 .v1-before { clip-path: inset(0 50% 0 0); }
 .v1-divider { position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: #fff; box-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
