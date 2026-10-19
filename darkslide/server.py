@@ -407,6 +407,13 @@ def api_get_project(req, pid):
     return project_response(req, req.store.get_project(pid))
 
 
+def api_set_menu_language(req, pid):
+    body = req.read_json()
+    if type(body) is not dict or set(body) != {"menu_language"}:
+        raise ApiError(400, "请求格式不正确")
+    return project_response(req, req.store.set_menu_language(pid, body["menu_language"]))
+
+
 def api_rename_project(req, pid):
     return project_response(req, req.store.rename_project(pid, req.read_json().get("title")))
 
@@ -1117,6 +1124,7 @@ ROUTES = tuple((method, path_pattern(spec), func) for method, spec, func in (
     ("GET", "/api/projects/<pid>", api_get_project),
     ("PATCH", "/api/projects/<pid>", api_rename_project),
     ("PUT", "/api/projects/<pid>/target-body", api_set_target_body),
+    ("PUT", "/api/projects/<pid>/menu-language", api_set_menu_language),
     ("PUT", "/api/projects/<pid>/draft", api_put_draft),
     ("POST", "/api/projects/<pid>/delete", api_delete_project),
     ("POST", "/api/projects/<pid>/save", api_save_project),

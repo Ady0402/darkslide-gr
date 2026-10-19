@@ -1,4 +1,4 @@
-from . import package, models
+from . import package, models, menu_language
 """Apply requested icon/name edits and package the result once.
 
 Uses the fixed image layout and package contract. Returns bytes,
@@ -24,7 +24,9 @@ def _validate_edits(edits, template):
         kind, no = edit.get("kind"), edit.get("slot")
         _require(type(kind) is str and kind in ("icon", "name") and type(no) is int and 1 <= no <= 14, "改动槽位或类型错误")
         fields = {"kind", "slot", "icon_id", "pixels"} if kind == "icon" else {"kind", "slot", "string_id", "text"}
-        _require(set(edit) == fields, "改动存在缺失或未知字段")
+        _require(set(edit) - ({"menu_language"} if kind == "name" else set()) == fields, "改动存在缺失或未知字段")
+        if "menu_language" in edit:
+            _require(edit["menu_language"] in menu_language.CHOICES, "相机菜单语言不正确")
         key = "icon_id" if kind == "icon" else "string_id"
         stage = "icon" if kind == "icon" else "rename"
         _require(type(edit[key]) is int and edit[key] == slots[no - 1][key] and
@@ -45,10 +47,10 @@ def _validate_edits(edits, template):
 
 
 # Languages whose own text never lends its storage to a longer preset name.
-KEEP_LANGUAGES = (0, 1, 18, 19)  # ja, en, zh-TW, zh-CN
+KEEP_LANGUAGES = menu_language.KEEP  # ja, en, zh-TW, zh-CN
 
 
-def _lendable(payload, identifier):
+def _lendable(payload, identifier, keep=KEEP_LANGUAGES):
     """Longest one-line text of this string in another language that no other
     record (any language, any string) points into. Ties go to the lower language.
     Returns (record offset, text offset, length byte, address) or None."""
@@ -63,7 +65,7 @@ def _lendable(payload, identifier):
             count, lines, zeros = struct.unpack_from("<BBH", payload, r)
             va = struct.unpack_from("<I", payload, r + 4)[0]
             spans.append((va, va + count * 2))
-            if other == identifier and language not in KEEP_LANGUAGES and lines == 1 and zeros == 0 and count >= 2:
+            if other == identifier and language not in keep and lines == 1 and zeros == 0 and count >= 2:
                 own.append((count, -language, r, va))
     best = None
     for count, neg_language, r, va in sorted(own, reverse=True):
@@ -123,8 +125,8 @@ def apply_edits(before, edits, template):
             text = edit["text"]
             _require(type(text) is str, "预设名必须为字符串")
             en = _string(before, edit["string_id"], 1)
-            zh = _string(before, edit["string_id"], 19)
-            tw = _string(before, edit["string_id"], 18)
+            others = [(code, _string(before, edit["string_id"], menu_language.index(code)))
+                      for code in menu_language.repointed(edit)]
             r, t, count, va, old = en
             _require(old == slots[edit["slot"] - 1]["factory_en"], "原厂英文名与模板不符")
             _require(0 < len(text) and all(32 <= ord(c) <= 126 for c in text) and
@@ -133,8 +135,9 @@ def apply_edits(before, edits, template):
             if len(text) <= len(old):  # fits the English text's own storage
                 write(t, new + bytes(count * 2 - len(new)), "name_en_text", edit)
                 write(r, bytes((len(text) + 1,)), "name_en_length", edit)
-                write(zh[0], bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", va), "name_zh_CN_record", edit)
-                write(tw[0], bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", va), "name_zh_TW_record", edit)
+                for code, rec in others:
+                    write(rec[0], bytes((len(text) + 1, 1, 0, 0)) + struct.pack("<I", va),
+                          "name_%s_record" % code.replace("-", "_"), edit)
             else:  # longer: use the longest storage only this string uses, in another language
                 lent = _lendable(before, edit["string_id"])
                 _require(lent is not None, "没有可借用的预设名存储")
@@ -144,8 +147,9 @@ def apply_edits(before, edits, template):
                 write(lt, new + bytes(lcount * 2 - len(new)), "name_lent_text", edit)
                 write(lr, bytes((len(text) + 1,)), "name_lent_length", edit)
                 write(r, record, "name_en_record", edit)
-                write(zh[0], record, "name_zh_CN_record", edit)
-                write(tw[0], record, "name_zh_TW_record", edit)
+                for code, rec in others:
+                    if rec[0] != lr:  # the lending language already shows its own (new) text
+                        write(rec[0], record, "name_%s_record" % code.replace("-", "_"), edit)
     _require(changes, "改动未改变任何字节")
     return bytes(after), changes
 

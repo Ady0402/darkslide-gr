@@ -330,7 +330,7 @@ async function loadProject(p) {
   $("chipModel").textContent = p.camera_variant || state.template.model;
   $("chipFw").textContent = "固件 " + state.template.firmware + " · 官方原件 · 已核对";
   $("projectCapability").textContent = p.capabilities ? p.capabilities.note : "";
-  $("btnGenerate").disabled = !!(p.capabilities && !p.capabilities.full_firmware && !p.capabilities.candidate_generation);
+  renderMenuLanguage();
   $("btnGenerate").textContent = p.capabilities && p.capabilities.candidate_generation ? "生成离线候选" : "生成";
   $("iiixRecipeOption").hidden = !(p.capabilities && p.capabilities.candidate_recipe_extension);
   $("iiixRecipeExtension").checked = false;
@@ -1023,7 +1023,28 @@ async function prepareFilms() {
 }
 
 // ---------------------------------------------------------------- generate
+// The camera menu language the firmware is made for; 生成 stays off until one is chosen.
+function renderMenuLanguage() {
+  const p = state.project || {};
+  const chosen = p.menu_language || "";
+  $("menuLangSelect").value = chosen;
+  $("menuLangBlock").classList.toggle("missing", !chosen);
+  const blocked = !!(p.capabilities && !p.capabilities.full_firmware && !p.capabilities.candidate_generation);
+  $("btnGenerate").disabled = blocked || !chosen;
+  $("btnGenerate").title = chosen ? "" : "先选择相机使用的菜单语言";
+}
+
+async function setMenuLanguage(code) {
+  if (!state.project || state.project.menu_language === code) return;
+  try {
+    const p = await api("PUT", "/api/projects/" + state.project.id + "/menu-language", { menu_language: code });
+    state.project = { ...state.project, menu_language: p.menu_language };
+    renderMenuLanguage();
+  } catch (e) { toast(e.message, true); renderMenuLanguage(); }
+}
+
 async function generate() {
+  if (!state.project.menu_language) { toast("先选择相机使用的菜单语言", true); return; }
   const candidate = !!(state.project.capabilities && state.project.capabilities.candidate_generation);
   const recipeExtension = candidate && !!state.project.capabilities.candidate_recipe_extension && $("iiixRecipeExtension").checked;
   if (state.project.capabilities && !state.project.capabilities.full_firmware && !candidate) {
@@ -1580,6 +1601,7 @@ function wire() {
 
   $("btnSave").addEventListener("click", saveProject);
   $("btnGenerate").addEventListener("click", generate);
+  $("menuLangSelect").addEventListener("change", (e) => { if (e.target.value) setMenuLanguage(e.target.value); });
   $("btnFilmPrepare").addEventListener("click", prepareFilms);
   $("preflightCancel").addEventListener("click", () => $("preflightDialog").close());
   $("preflightOk").addEventListener("click", async () => {

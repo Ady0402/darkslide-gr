@@ -1,4 +1,4 @@
-from . import package_inspect
+from . import package_inspect, menu_language
 """Independent combined readback. Imports the reader only, never a writer.
 
 Expected bytes are derived from the immutable official file and requested edits;
@@ -80,7 +80,7 @@ def _container(raw, model_id=None):
     return package_inspect.inspect(raw, model_id)
 
 
-def _longer_name_home(p, string):
+def _longer_name_home(p, string, keep=menu_language.KEEP):
     """Where a name longer than the English original goes: among this string's
     records outside ja/en/zh-TW/zh-CN, the longest one-line text whose bytes no
     other record reaches (lowest language on a tie). (record offset, text offset,
@@ -97,7 +97,7 @@ def _longer_name_home(p, string):
             size, rows = p.p[at], p.p[at + 1]
             text = p.u32(rec + 4)
             reach.append((text, text + 2 * size))
-            if ident == string and lang not in (0, 1, 18, 19) and rows == 1 and p.p[at + 2:at + 4] == b'\0\0':
+            if ident == string and lang not in keep and rows == 1 and p.p[at + 2:at + 4] == b'\0\0':
                 mine.append((size, lang, at, text))
     mine.sort(key=lambda m: (-m[0], m[1]))
     for size, lang, at, text in mine:
@@ -209,11 +209,11 @@ disk here, and passing checks does not change the generation availability gate.
                         at = (y * 40 + 1) * 4
                         write(info['payload_offset'] + at, px[at:at + 152])
             else:
-                _need(set(edit) == {'kind', 'slot', 'string_id', 'text'} and
+                _need(set(edit) - {'menu_language'} == {'kind', 'slot', 'string_id', 'text'} and
                       type(edit['string_id']) is int and edit['string_id'] == string and
                       2 <= no <= 12 and slot['rename'] in ('test', 'open'), 'name scope')
-                en, zh = p.string(string, 'en'), p.string(string, 'zh-CN')
-                tw = p.string(string, 'zh-TW')
+                en = p.string(string, 'en')
+                others = [p.string(string, menu_language.index(code)) for code in menu_language.repointed(edit)]
                 text = edit['text']
                 _need(type(text) is str and 0 < len(text) and
                       all(32 <= ord(c) <= 126 for c in text) and text == text.strip(' ') and
@@ -224,8 +224,8 @@ disk here, and passing checks does not change the generation availability gate.
                     write(en['text_offset'], value + bytes(capacity - len(value)))
                     write(en['record_offset'], bytes((len(text) + 1,)))
                     pointer = before[en['record_offset'] + 4:en['record_offset'] + 8]
-                    write(zh['record_offset'], bytes((len(text) + 1, 1, 0, 0)) + pointer)
-                    write(tw['record_offset'], bytes((len(text) + 1, 1, 0, 0)) + pointer)
+                    for other in others:
+                        write(other['record_offset'], bytes((len(text) + 1, 1, 0, 0)) + pointer)
                 else:
                     home = _longer_name_home(p, string)
                     _need(home is not None and len(value) <= home[2] * 2 and
@@ -235,8 +235,9 @@ disk here, and passing checks does not change the generation availability gate.
                     write(at, bytes((len(text) + 1,)))
                     record = bytes((len(text) + 1, 1, 0, 0)) + struct.pack('<I', address)
                     write(en['record_offset'], record)
-                    write(zh['record_offset'], record)
-                    write(tw['record_offset'], record)
+                    for other in others:
+                        if other['record_offset'] != at:
+                            write(other['record_offset'], record)
         add('icon_name_expected', True)
         if film_edits and film_layout == 'inplace_history_cache_exit_v29':
             evidence, actual_windows = film_backend.readback(bytes(before), bytes(after), film_edits, film_profiles)
@@ -276,10 +277,12 @@ disk here, and passing checks does not change the generation availability gate.
             _, got = q.icon_pixels(icon)
             at = info['payload_offset']
             semantic_ok = semantic_ok and got == expected[at:at + len(raw)]
-            for language in ('en', 'zh-CN', 'zh-TW', 'ja'):
+            chosen = tuple(menu_language.repointed(name_requests[no])) if no in name_requests else ()
+            for language in ('en', 'zh-CN', 'zh-TW', 'ja') + tuple(c for c in chosen if c not in ('zh-CN', 'zh-TW', 'ja')):
+                at = menu_language.index(language)
                 want = (name_requests[no]['text'] if no in name_requests and
-                        language in ('en', 'zh-CN', 'zh-TW') else p.string(string, language)['text'])
-                semantic_ok = semantic_ok and q.string(string, language)['text'] == want
+                        menu_language.shows_new_name(name_requests[no], language) else p.string(string, at)['text'])
+                semantic_ok = semantic_ok and q.string(string, at)['text'] == want
         add('readback_icons_names', semantic_ok)
         records = _resources(before)
         if jpeg is not None:

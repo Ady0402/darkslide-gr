@@ -64,6 +64,8 @@ class CompositeFixture:
                 return dict(payload_offset=at), self.p[at:at + 6400]
 
             def string(self, ident, language):
+                if type(language) is int:  # the checker also asks by menu language index
+                    language = {0: 'ja', 1: 'en', 18: 'zh-TW', 19: 'zh-CN'}[language]
                 rec = owner.strings[(ident, language)]
                 count = self.p[rec]
                 at = struct.unpack_from('<I', self.p, rec + 4)[0]

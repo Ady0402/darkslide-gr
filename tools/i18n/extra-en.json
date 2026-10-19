@@ -1,0 +1,21 @@
+{
+"标准": "Standard",
+"鲜艳": "Vivid",
+"单色": "Monotone",
+"柔和单色": "Soft Monotone",
+"硬调单色": "Hard Monotone",
+"高对比黑白": "Hi-Contrast B&W",
+"正片": "Positive Film",
+"银流冲洗": "Bleach Bypass",
+"怀旧": "Retro",
+"HDR 色调": "HDR Tone",
+"交叉冲洗": "Cross Processing",
+"负片": "Negative Film",
+"自定义 1": "Custom 1",
+"自定义 2": "Custom 2",
+"自定义": "Custom",
+"%d 项": "%d items",
+"项": "items",
+"正面示意图": "front view",
+"预览 LUT 与胶片数据来自 spektrafilm（Andrea Volpato，CC BY-SA 4.0），由 LiorMoment 修改（设定白点）；相机参数由 DARKSLIDE GR 拟合。": "Preview LUTs and film data come from spektrafilm (Andrea Volpato, CC BY-SA 4.0), modified by LiorMoment (white point set); camera parameters fitted by DARKSLIDE GR."
+}

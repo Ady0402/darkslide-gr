@@ -153,7 +153,8 @@ class Payload:
     # strings ------------------------------------------------------------
     def string(self, string_id, lang="en"):
         L = self.L
-        li = LANG[lang]
+        li = lang if type(lang) is int else LANG[lang]  # a code above, or a menu language index
+        need(0 <= li < L["languages"], "language out of range")
         need(0 < string_id < L["string_ids"], "string id out of range")
         table = self.u32(L["string_array_ram"] + 4 * li)
         record = self.u32(table + 4 * string_id)
