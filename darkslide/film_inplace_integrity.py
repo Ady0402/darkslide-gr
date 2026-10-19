@@ -6,8 +6,8 @@ from pathlib import Path
 from . import film_inplace_readback as data
 
 REFERENCE = Path(__file__).with_name('film_inplace_reference.json')
-REFERENCE_SHA256 = '39e6d3cbb766e8f5793b34eb86deb5594869a75c46e07d70b700c908cf0b831a'
-CANDIDATE_SHA256 = 'f74474745757aebfec38fd0f9dcf9eba4e4ae8de76eb25a85ff71bf1ddce6908'
+REFERENCE_SHA256 = 'a822d6ce54c31e36b77fd32fb9bd09fb2753a744023f5187d8923a966ad5befd'
+CANDIDATE_SHA256 = '9eb72ac69ddb302a56b87256820cf27f0aad049a97da69068111cdc7a6a624e5'
 
 def data_addresses(selection):
     if not selection:return set()
