@@ -12,6 +12,7 @@ from .film_requests import validate_batch,FilmRequestError
 from .film_profiles import validate_profile
 from .film_writer import _init_tail,SLOT_INFO,HDR_FIXES
 from .film_standard_proxy import derive,ACTIVE,mask_slots
+from . import film_own_checks
 from .fwread import Payload
 from .factory_envelope import factory_envelope_from_payload
 from ._vendor.gr3_four_curve_hooks import point_source
@@ -283,6 +284,10 @@ def plan_offline(raw,edits,profiles):
         a=dummy[0];dummy[0]+=256;return a
     old,_,_=derive(read,[e['slot'] for e in requests],ignore)
     guards.extend(row for row in old if row[0] not in ACTIVE)
+    # An installed tone's own still checks would push the original preset's
+    # adjustments after Standard's (Bleach Bypass key/contrast/highlight +4);
+    # only Standard's values may reach a film (film_own_checks).
+    guards.extend(film_own_checks.changes(read,[e['slot'] for e in requests]))
     guards.extend([
         (0x536df458,_branch(0x536df458,0x531403a8,link=True),_branch(0x536df458,addresses['ma_ctor'],link=True)),
         (0x536df4d8,0xe5803008,_branch(0x536df4d8,addresses['ma_default'])),
