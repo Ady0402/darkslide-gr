@@ -76,6 +76,18 @@ class RealCandidate(unittest.TestCase):
         print('PRODUCT_CANDIDATE',json.dumps({k:result[k] for k in ('output_sha256','decoded_growth_bytes','firmware_layout','features')},ensure_ascii=False),flush=True)
         return result,output
 
+    def test_chosen_menu_language_reaches_the_iiix_build(self):
+        # The IIIx path must honour the menu language picked before generating, like GR III does.
+        slot=self.template['slots'][1]
+        self.app.store.set_menu_language(self.pid,'ko')
+        result,output=self.build({str(slot['no']):{'name':'Vivid KO'}},False)
+        self.assertEqual(result['menu_language'],'ko')
+        stock=fwread.Payload(fwread.unpack(self.source),models.layout(models.GR3X))
+        after=fwread.Payload(fwread.unpack(output),models.layout(models.GR3X),pinned=False)
+        for lang,shows in ((1,True),(17,True),(19,False),(18,False),(0,False)):  # en, ko, zh-CN, zh-TW, ja
+            want='Vivid KO' if shows else stock.string(slot['string_id'],lang)['text']
+            self.assertEqual(after.string(slot['string_id'],lang)['text'],want,lang)
+
     def test_curves_plus_ordinary_and_extended_full_bundle(self):
         from test_http import icon_png
         icon=self.app.store.put_asset(self.pid,icon_png(),expect_icon=True)

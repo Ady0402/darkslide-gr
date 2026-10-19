@@ -7,7 +7,7 @@ is offered for download.
 import hashlib
 import struct
 
-from . import fwread, menu_language
+from . import fwread, verify_languages as VL
 
 VISIBLE = (1, 2, 38, 36)
 
@@ -123,11 +123,10 @@ def verify(official_bin, result, edits, template):
         if g_px != want:
             icon_ok = False
             notes.append("%s 图标不一致" % slot["name"])
-        chosen = tuple(menu_language.repointed(name_edits[no])) if no in name_edits else ()
-        for lang in ("en", "zh-CN", "zh-TW", "ja") + tuple(c for c in chosen if c not in ("zh-CN", "zh-TW", "ja")):
-            at = menu_language.index(lang)
+        for lang in VL.checked(name_edits.get(no)):
+            at = VL.INDEX[lang]
             got = p1.string(slot["string_id"], at)["text"]
-            if no in name_edits and menu_language.shows_new_name(name_edits[no], lang):
+            if no in name_edits and VL.shows_new_name(name_edits[no], lang):
                 exp = name_edits[no]["text"]
             else:
                 exp = p0.string(slot["string_id"], at)["text"]

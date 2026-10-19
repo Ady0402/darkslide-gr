@@ -1,7 +1,7 @@
 """Preset names longer than the original English name.
 
 A longer name goes into the longest storage that only this string uses, in a language
-other than ja/en/zh-TW/zh-CN; English, Simplified and Traditional Chinese then point there. Names that
+other than ja/en/zh-TW/zh-CN; English and Simplified Chinese then point there. Names that
 fit the English original keep the earlier byte-for-byte behaviour."""
 
 import hashlib
@@ -62,9 +62,9 @@ class RealFirmware(unittest.TestCase):
                 continue
             with self.subTest(preset=s["name"], length=len(text)):
                 _, after = self.build([dict(kind="name", slot=no, string_id=s["string_id"], text=text)])
-                for lang in ("en", "zh-CN", "zh-TW"):
+                for lang in ("en", "zh-CN"):
                     self.assertEqual(after.string(s["string_id"], lang)["text"], text)
-                for lang in ("ja",):
+                for lang in ("ja", "zh-TW"):
                     self.assertEqual(after.string(s["string_id"], lang)["text"],
                                      self.stock.string(s["string_id"], lang)["text"])
                 for other in self.t["slots"]:
@@ -79,7 +79,6 @@ class RealFirmware(unittest.TestCase):
         for e in edits:
             self.assertEqual(after.string(e["string_id"], "en")["text"], e["text"])
             self.assertEqual(after.string(e["string_id"], "zh-CN")["text"], e["text"])
-            self.assertEqual(after.string(e["string_id"], "zh-TW")["text"], e["text"])
 
     def test_short_names_unchanged_behaviour(self):
         # Names that fit the English original write exactly the bytes they always did.

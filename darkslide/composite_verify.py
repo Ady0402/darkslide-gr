@@ -1,4 +1,4 @@
-from . import package_inspect, menu_language
+from . import package_inspect, verify_languages as VL
 """Independent combined readback. Imports the reader only, never a writer.
 
 Expected bytes are derived from the immutable official file and requested edits;
@@ -80,7 +80,7 @@ def _container(raw, model_id=None):
     return package_inspect.inspect(raw, model_id)
 
 
-def _longer_name_home(p, string, keep=menu_language.KEEP):
+def _longer_name_home(p, string, keep=VL.NEVER_LENT):
     """Where a name longer than the English original goes: among this string's
     records outside ja/en/zh-TW/zh-CN, the longest one-line text whose bytes no
     other record reaches (lowest language on a tie). (record offset, text offset,
@@ -213,7 +213,7 @@ disk here, and passing checks does not change the generation availability gate.
                       type(edit['string_id']) is int and edit['string_id'] == string and
                       2 <= no <= 12 and slot['rename'] in ('test', 'open'), 'name scope')
                 en = p.string(string, 'en')
-                others = [p.string(string, menu_language.index(code)) for code in menu_language.repointed(edit)]
+                others = [p.string(string, VL.INDEX[code]) for code in VL.chosen(edit)]
                 text = edit['text']
                 _need(type(text) is str and 0 < len(text) and
                       all(32 <= ord(c) <= 126 for c in text) and text == text.strip(' ') and
@@ -277,11 +277,10 @@ disk here, and passing checks does not change the generation availability gate.
             _, got = q.icon_pixels(icon)
             at = info['payload_offset']
             semantic_ok = semantic_ok and got == expected[at:at + len(raw)]
-            chosen = tuple(menu_language.repointed(name_requests[no])) if no in name_requests else ()
-            for language in ('en', 'zh-CN', 'zh-TW', 'ja') + tuple(c for c in chosen if c not in ('zh-CN', 'zh-TW', 'ja')):
-                at = menu_language.index(language)
+            for language in VL.checked(name_requests.get(no)):
+                at = VL.INDEX[language]
                 want = (name_requests[no]['text'] if no in name_requests and
-                        menu_language.shows_new_name(name_requests[no], language) else p.string(string, at)['text'])
+                        VL.shows_new_name(name_requests[no], language) else p.string(string, at)['text'])
                 semantic_ok = semantic_ok and q.string(string, at)['text'] == want
         add('readback_icons_names', semantic_ok)
         records = _resources(before)

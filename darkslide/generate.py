@@ -162,7 +162,7 @@ def _run(store, project, template, official_bin, *, film_profiles=None, inplace=
     if not changes:
         raise GenerateError("还没有改动")
     # The page only enables 生成 once a menu language is chosen; a project without one
-    # (older projects, direct API callers) keeps the 1.0.1 languages.
+    # (older projects, direct API callers) keeps the 1.0.0 behaviour (Simplified Chinese).
     menu_lang = project.get("menu_language")
     if menu_lang is not None:
         try:

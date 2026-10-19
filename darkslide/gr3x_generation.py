@@ -9,7 +9,7 @@ import json
 import struct
 import time
 from . import models, fwread, package, package_inspect, compositor, composite_verify, rescue_gate
-from . import edit_core, generate, film_requests, film_profiles, film_writer, body_target
+from . import edit_core, generate, film_requests, film_profiles, film_writer, body_target, menu_language
 from . import gr3x_inplace, gr3x_inplace_integrity, gr3x_inplace_readback
 
 LAYOUT = 'gr3x160_inplace_candidate_v1'
@@ -141,7 +141,11 @@ def run(store, project, template, official, *, recipe_extension=False):
         names={e['icon']['asset'] for k,e in effective.items() if k!='shutdown' and 'icon' in e}
         if 'shutdown' in effective:names.add(effective['shutdown']['asset'])
         assets={n:store.asset_path(saved['id'],n).read_bytes() for n in names}
-        edits=generate.edits_from_changes(store,saved['id'],effective,template,include_films=True,asset_snapshot=assets)
+        menu_lang=saved.get('menu_language')
+        if menu_lang is not None:
+            try:menu_language.validate(menu_lang)
+            except menu_language.MenuLanguageError as exc:raise generate.GenerateError(str(exc))
+        edits=generate.edits_from_changes(store,saved['id'],effective,template,include_films=True,asset_snapshot=assets,menu_lang=menu_lang)
         jpeg=assets[effective['shutdown']['asset']] if 'shutdown' in effective else None
         archive=None; extension={}; layout=LAYOUT
         if recipe_extension:
@@ -183,7 +187,7 @@ def run(store, project, template, official, *, recipe_extension=False):
             container_encoding="stored_frames" if recipe_extension else "preserve_original_frames_except_changes",
             decoded_growth_bytes=len(after)-len(before),curve_growth_bytes=0,firmware_layout=layout,
             checks=[dict(c,title=_iiix_title(c)) for c in checks],
-            summary=generate.summarize(effective,template,include_films=True),features=sorted({e['kind'] for e in edits}|({'photo_recipe'} if recipe_extension else set())|({'shutdown'} if jpeg else set())),
+            summary=generate.summarize(effective,template,include_films=True),menu_language=menu_lang,features=sorted({e['kind'] for e in edits}|({'photo_recipe'} if recipe_extension else set())|({'shutdown'} if jpeg else set())),
             experimental=True,production_approved=False,camera_verified=False,product_download_enabled=True,
             film_data_revision=revision,body=report,recipe_extension=extension,verification=NOTE,
             rescue=dict(official_file=models.GR3X.filename,official_sha256=models.GR3X.input_sha,how='IIIx 实机安装及同版本回刷待验证'))

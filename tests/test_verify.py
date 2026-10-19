@@ -42,12 +42,10 @@ class Verify(unittest.TestCase):
         self.assertIn("sha", failed)
 
     def test_undeclared_change_fails(self):
-        for what in ("name_zh_CN_record", "name_zh_TW_record"):
-            with self.subTest(what=what):
-                bad = copy.deepcopy(self.result)
-                bad["payload_changes"] = [c for c in bad["payload_changes"] if c["what"] != what]
-                failed = {c["id"] for c in verify.verify(self.raw, bad, self.edits, self.template) if not c["ok"]}
-                self.assertEqual(failed, {"only_declared"})
+        bad = copy.deepcopy(self.result)
+        bad["payload_changes"] = [c for c in bad["payload_changes"] if c["what"] != "name_zh_CN_record"]
+        failed = {c["id"] for c in verify.verify(self.raw, bad, self.edits, self.template) if not c["ok"]}
+        self.assertEqual(failed, {"only_declared"})
 
     def test_wrong_expectation_fails(self):
         edits = copy.deepcopy(self.edits)

@@ -2,8 +2,9 @@
 
 English always shows the new name (its text holds it); the chosen language's record
 points at that text too; every other language keeps the factory name. A name edit
-without a choice keeps the 1.0.1 languages (Simplified and Traditional Chinese)."""
+without a choice keeps the 1.0.0 behaviour (Simplified Chinese only)."""
 
+import json
 import os
 import tempfile
 import unittest
@@ -18,7 +19,7 @@ ALL = tuple(menu_language.CHOICES)  # all 21 firmware menu languages
 
 class Rules(unittest.TestCase):
     def test_repointed(self):
-        self.assertEqual(menu_language.repointed({}), ("zh-CN", "zh-TW"))
+        self.assertEqual(menu_language.repointed({}), ("zh-CN",))
         self.assertEqual(menu_language.repointed({"menu_language": "en"}), ())
         for code in ("zh-CN", "zh-TW", "ja", "ko", "th", "fr"):
             self.assertEqual(menu_language.repointed({"menu_language": code}), (code,))
@@ -26,7 +27,7 @@ class Rules(unittest.TestCase):
         self.assertEqual(sorted(i for i, _ in menu_language.CHOICES.values()), list(range(21)))
 
     def test_unknown_language_refused(self):
-        for bad in (None, "", "kr", "zh", "EN"):
+        for bad in (None, "", "kr", "zh", "EN", [], {}, 0):
             with self.assertRaises(menu_language.MenuLanguageError):
                 menu_language.validate(bad)
 
@@ -40,6 +41,10 @@ class Rules(unittest.TestCase):
             with self.assertRaises(store_mod.StoreError):
                 store.set_menu_language(pid, "kr")
             self.assertEqual(store.get_project(pid)["menu_language"], "zh-TW")
+            store.put_draft(pid, {}, template.load())
+            store.save(pid, template.load())
+            saved = json.loads((Path(root) / "projects" / pid / "versions" / "1.json").read_text("utf-8"))
+            self.assertEqual(saved["menu_language"], "zh-TW")
 
 
 @unittest.skipUnless(OFFICIAL.exists(), "official firmware not available on this machine")

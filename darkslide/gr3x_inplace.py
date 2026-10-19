@@ -12,7 +12,7 @@ from .film_profiles import validate_profile
 from .film_writer import _init_tail,SLOT_INFO,HDR_FIXES
 from .gr3x_inplace_proxy import derive,ACTIVE,mask_slots
 from .fwread import Payload
-from . import models
+from . import models, film_own_checks
 from .gr3x_factory_envelope import factory_envelope_from_payload
 from ._vendor.gr3_four_curve_hooks import point_source
 from ._vendor.gr3_film_hooks import csp_entry
@@ -283,6 +283,10 @@ def plan_offline(raw,edits,profiles):
         a=dummy[0];dummy[0]+=256;return a
     old,_,_=derive(read,[e['slot'] for e in requests],ignore)
     guards.extend(row for row in old if row[0] not in ACTIVE)
+    # Same as GR III 2.10 (film_inplace_cache): the installed tones' own still checks
+    # must stay quiet, or the original preset's adjustments reach the film. The check
+    # code in 0x5325B000-0x5326B800 is byte-identical in IIIx 1.60.
+    guards.extend(film_own_checks.changes(read,[e['slot'] for e in requests]))
     guards.extend([
         (0x536df458,_branch(0x536df458,0x531403a8,link=True),_branch(0x536df458,addresses['ma_ctor'],link=True)),
         (0x536df4d8,0xe5803008,_branch(0x536df4d8,addresses['ma_default'])),

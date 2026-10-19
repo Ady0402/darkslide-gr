@@ -3,8 +3,8 @@
 The new name always lives in the English text (or the storage lent to it), so the
 English menu always shows it. The language chosen here additionally gets its own
 menu record pointed at that text; every other language keeps its factory name.
-A name edit without a choice keeps the 1.0.1 behaviour (Simplified and
-Traditional Chinese), which only older callers and tests rely on.
+A name edit without a choice keeps the 1.0.0 behaviour (Simplified Chinese only),
+for older projects and direct API callers.
 
 The 21 menu languages are listed in the firmware's own order (index into the
 string-table array); every preset name record in each of them was checked on the
@@ -35,7 +35,7 @@ CHOICES = {
     "zh-CN": (19, "简体中文"),
     "th": (20, "ภาษาไทย"),
 }
-LEGACY = ("zh-CN", "zh-TW")
+LEGACY = ("zh-CN",)
 # Languages whose own text never lends its storage to a longer preset name. When the
 # chosen language is the one that lends, its own record already shows the new name
 # and is not pointed a second time.
@@ -47,7 +47,7 @@ class MenuLanguageError(ValueError):
 
 
 def validate(value):
-    if value not in CHOICES:
+    if type(value) is not str or value not in CHOICES:
         raise MenuLanguageError("相机菜单语言只能是固件里的 21 种语言之一")
     return value
 

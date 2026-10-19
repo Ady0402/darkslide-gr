@@ -90,14 +90,14 @@ const assetUrl = (asset) => "/api/projects/" + state.project.id + "/assets/" + a
 const factoryUrl = (no) => state.factory ? "/api/factory/" + state.project.input_sha256 + "/icons/" + no + ".png" : null;
 
 // ---------------------------------------------------------------- start
-// Camera choice: a series (one firmware file per series) and a model inside it. Only the base GR III
-// has been tested on a camera; any other model asks the user to confirm before going on.
+// Camera choice: a series (one firmware file per series) and a model inside it. The base GR III and the
+// GR III HDF have been tested on a camera; any other model asks the user to confirm before going on.
 const RICOH_FW = "https://www.ricoh-imaging.co.jp/resources/japan/support/download/digital/FIRMWARE/";
 const SERIES = [
   { name: "GR III 系列", short: "GR III", desc: "28mm · 固件 2.10 · 4 个型号共用", tag: "可用", ready: true,
     fw: "fwdc239b.bin", ver: "2.10", zip: "gr3_v210.zip", licence: "https://www.ricoh-imaging.co.jp/english/support/digital/gr3_s.html",
     note: "同一个固件文件通用于 GR III、街拍版、日记版、HDF。",
-    models: [["GR III", "标准版", true], ["GR III Street Edition", "街拍版"], ["GR III Diary Edition", "日记版"], ["GR III HDF", "带柔光滤镜"]] },
+    models: [["GR III", "标准版", true], ["GR III Street Edition", "街拍版"], ["GR III Diary Edition", "日记版"], ["GR III HDF", "带柔光滤镜", true]] },
   { name: "GR IIIx 系列", short: "GR IIIx", desc: "40mm · 固件 1.60 · 3 个型号共用", tag: "已适配 · 未实测", ready: false,
     fw: "fwdc243b.bin", ver: "1.60", zip: "gr3x_v160.zip", licence: "https://www.ricoh-imaging.co.jp/english/support/digital/gr3x_s.html",
     note: "同一个固件文件通用于 GR IIIx、城市版、HDF。这一版的 GR IIIx 支持还在合并中，暂时不能导入。",
@@ -679,7 +679,7 @@ function renderEditor() {
   // Only problems are listed (user, 2026-10-17): nothing is shown when the name passes.
   const failed = checks.filter((c) => !c.ok);
   const items = failed.map((c) => el("li", { class: "bad" }, [el("span", { class: "mk", text: "✕" }), el("span", { text: c.message })]));
-  $("nameBox").title = nameOpen ? "原厂英文名 " + s.factory_en + "。英文和简体中文菜单显示新预设名，其他语言保持原厂；超过 " + s.factory_en.length + " 个字符时，另有一种不常用的语言也会显示新预设名。" : "";
+  $("nameBox").title = nameOpen ? "原厂英文名 " + s.factory_en + "。英文和所选相机菜单语言显示新预设名，其他语言保持原厂；超过 " + s.factory_en.length + " 个字符时，另有一种不常用的语言也会显示新预设名。" : "";
   if (!nameOpen) {
     items.push(el("li", { class: "info" }, [el("span", { class: "mk", text: "i" }), el("span", { text: "这个预设的预设名" + (s.rename === "closed" ? "暂不开放" : "稍后开放") + (s.note ? "：" + s.note : "") })]));
   }

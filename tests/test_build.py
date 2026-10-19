@@ -49,7 +49,7 @@ class Builder(unittest.TestCase):
     def test_independent_full_readback(self):
         for edit in self.edits:
             if edit["kind"] == "name":
-                for lang in ("en", "zh-CN", "zh-TW"):
+                for lang in ("en", "zh-CN"):
                     self.assertEqual(self.changed.string(edit["string_id"], lang)["text"], edit["text"])
             else:
                 _, old = self.stock.icon_pixels(edit["icon_id"])
@@ -77,7 +77,7 @@ class Builder(unittest.TestCase):
             if icon not in touched_icons:
                 self.assertEqual(self.stock.icon_pixels(icon), self.changed.icon_pixels(icon))
             for lang in fwread.LANG:
-                if string not in touched_names or lang not in ("en", "zh-CN", "zh-TW"):
+                if string not in touched_names or lang not in ("en", "zh-CN"):
                     self.assertEqual(self.stock.string(string, lang), self.changed.string(string, lang))
 
     def test_independent_checksums(self):

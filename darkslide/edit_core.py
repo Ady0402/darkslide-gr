@@ -26,7 +26,7 @@ def _validate_edits(edits, template):
         fields = {"kind", "slot", "icon_id", "pixels"} if kind == "icon" else {"kind", "slot", "string_id", "text"}
         _require(set(edit) - ({"menu_language"} if kind == "name" else set()) == fields, "改动存在缺失或未知字段")
         if "menu_language" in edit:
-            _require(edit["menu_language"] in menu_language.CHOICES, "相机菜单语言不正确")
+            _require(type(edit["menu_language"]) is str and edit["menu_language"] in menu_language.CHOICES, "相机菜单语言不正确")
         key = "icon_id" if kind == "icon" else "string_id"
         stage = "icon" if kind == "icon" else "rename"
         _require(type(edit[key]) is int and edit[key] == slots[no - 1][key] and

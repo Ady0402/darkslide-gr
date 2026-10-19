@@ -279,7 +279,10 @@ class Store:
         clean = self.validate_changes(project_id, draft.get("changes", {}), template, strict=True)
         stamp = now()
         number = len(project.get("versions", [])) + 1
-        write_json(path / "versions" / ("%d.json" % number), dict(changes=clean, saved_at=stamp))
+        record = dict(changes=clean, saved_at=stamp)
+        if "menu_language" in project:  # a camera setting like target_body; noted with each saved version
+            record["menu_language"] = project["menu_language"]
+        write_json(path / "versions" / ("%d.json" % number), record)
         project.update(changes=clean, saved_at=stamp)
         project.setdefault("versions", []).append(dict(number=number, saved_at=stamp, changes=len(clean)))
         write_json(path / "project.json", project)

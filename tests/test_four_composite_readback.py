@@ -110,14 +110,12 @@ class CompositeFixture:
             else:
                 rec = self.strings[(edit['string_id'], 'en')]
                 zh = self.strings[(edit['string_id'], 'zh-CN')]
-                tw = self.strings[(edit['string_id'], 'zh-TW')]
                 at = struct.unpack_from('<I', body, rec + 4)[0]
                 capacity = body[rec] * 2
                 value = edit['text'].encode('utf-16-le') + bytes(2)
                 body[at:at + capacity] = value + bytes(capacity - len(value))
                 body[rec] = len(edit['text']) + 1
                 body[zh:zh + 8] = bytes((len(edit['text']) + 1, 1, 0, 0)) + body[rec + 4:rec + 8]
-                body[tw:tw + 8] = bytes((len(edit['text']) + 1, 1, 0, 0)) + body[rec + 4:rec + 8]
         return self.result(self.finalize(body))
 
     def result(self, after):
