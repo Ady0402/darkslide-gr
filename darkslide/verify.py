@@ -7,7 +7,7 @@ is offered for download.
 import hashlib
 import struct
 
-from . import fwread
+from . import fwread, menu_language
 
 VISIBLE = (1, 2, 38, 36)
 
@@ -123,17 +123,19 @@ def verify(official_bin, result, edits, template):
         if g_px != want:
             icon_ok = False
             notes.append("%s 图标不一致" % slot["name"])
-        for lang in ("en", "zh-CN", "ja"):
-            got = p1.string(slot["string_id"], lang)["text"]
-            if no in name_edits and lang in ("en", "zh-CN"):
+        chosen = tuple(menu_language.repointed(name_edits[no])) if no in name_edits else ()
+        for lang in ("en", "zh-CN", "zh-TW", "ja") + tuple(c for c in chosen if c not in ("zh-CN", "zh-TW", "ja")):
+            at = menu_language.index(lang)
+            got = p1.string(slot["string_id"], at)["text"]
+            if no in name_edits and menu_language.shows_new_name(name_edits[no], lang):
                 exp = name_edits[no]["text"]
             else:
-                exp = p0.string(slot["string_id"], lang)["text"]
+                exp = p0.string(slot["string_id"], at)["text"]
             if got != exp:
                 name_ok = False
                 notes.append("%s %s 预设名不一致" % (slot["name"], lang))
     add("icons", "读回图标：改动的与设定一致，其余与原厂一致", icon_ok, "；".join(n for n in notes if "图标" in n))
-    add("names", "读回预设名：英文和简中为新名，其他语言保持原厂", name_ok, "；".join(n for n in notes if "预设名" in n))
+    add("names", "读回预设名：英文和所选菜单语言为新名，其他语言保持原厂", name_ok, "；".join(n for n in notes if "预设名" in n))
     grain_edits = [e for e in edits if e["kind"] == "grain_menu"]
     want = "opened" if grain_edits else "factory"
     try:

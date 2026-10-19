@@ -71,7 +71,7 @@ class RealFirmware(unittest.TestCase):
             got = bytes(fwread.icon_to_rgba(after.icon_pixels(s["icon_id"])[1]))
             want = icons.get(s["no"], bytes(fwread.icon_to_rgba(self.stock.icon_pixels(s["icon_id"])[1])))
             self.assertEqual(got, want, "icon of %s" % s["name"])
-            for lang in ("en", "zh-CN"):
+            for lang in ("en", "zh-CN", "zh-TW"):
                 text = after.string(s["string_id"], lang)["text"]
                 want = names.get(s["no"], self.stock.string(s["string_id"], lang)["text"])
                 self.assertEqual(text, want, "%s name of %s" % (lang, s["name"]))

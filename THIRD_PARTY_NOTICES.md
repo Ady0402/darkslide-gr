@@ -25,6 +25,7 @@
 |---|---|---|---|
 | NumPy（仅开发者拟合工具） | 调用方环境版本 | https://numpy.org/ | BSD-3-Clause |
 | Unicorn（「拟合」功能的可选组件） | 2.1.4 | https://github.com/unicorn-engine/unicorn/tree/2.1.4 | 原生引擎 GPL-2.0；Python wheel 元数据标记 BSD，不能将引擎视为 BSD |
+| opencc-js（仅开发时，用来生成 `tools/i18n/zh-Hant.json` 与 `web/i18n-data.js` 里的繁体对照表；不随程序运行） | 1.0.5 | https://github.com/nk2028/opencc-js | 代码 MIT；所含 OpenCC 词典 Apache-2.0（https://github.com/BYVoid/OpenCC） |
 
 ## 4. 胶片曲线数据（CC BY-SA 4.0）
 

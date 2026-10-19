@@ -20,7 +20,7 @@ import tempfile
 import time
 from pathlib import Path
 
-from . import models, body_target, film_luts, film_requests, jpegcheck, names, pngcheck, shared_shutdown, template as tpl
+from . import models, body_target, film_luts, film_requests, jpegcheck, names, pngcheck, shared_shutdown, template as tpl, menu_language
 from .identify import digest_of
 
 PROJECT_ID = re.compile(r"^p_[0-9a-f]{12}$")
@@ -251,6 +251,18 @@ class Store:
             project.pop("target_body", None)
         else:
             project["target_body"] = body
+        write_json(path / "project.json", project)
+        return self.get_project(project_id)
+
+    def set_menu_language(self, project_id, value):
+        """The camera menu language the user runs, chosen before generating."""
+        try:
+            value = menu_language.validate(value)
+        except menu_language.MenuLanguageError as exc:
+            raise StoreError(str(exc))
+        path = self._dir(project_id)
+        project = read_json(path / "project.json")
+        project["menu_language"] = value
         write_json(path / "project.json", project)
         return self.get_project(project_id)
 

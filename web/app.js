@@ -330,7 +330,7 @@ async function loadProject(p) {
   $("chipModel").textContent = p.camera_variant || state.template.model;
   $("chipFw").textContent = "固件 " + state.template.firmware + " · 官方原件 · 已核对";
   $("projectCapability").textContent = p.capabilities ? p.capabilities.note : "";
-  $("btnGenerate").disabled = !!(p.capabilities && !p.capabilities.full_firmware && !p.capabilities.candidate_generation);
+  renderMenuLanguage();
   $("btnGenerate").textContent = p.capabilities && p.capabilities.candidate_generation ? "生成离线候选" : "生成";
   $("iiixRecipeOption").hidden = !(p.capabilities && p.capabilities.candidate_recipe_extension);
   $("iiixRecipeExtension").checked = false;
@@ -1023,7 +1023,28 @@ async function prepareFilms() {
 }
 
 // ---------------------------------------------------------------- generate
+// The camera menu language the firmware is made for; 生成 stays off until one is chosen.
+function renderMenuLanguage() {
+  const p = state.project || {};
+  const chosen = p.menu_language || "";
+  $("menuLangSelect").value = chosen;
+  $("menuLangBlock").classList.toggle("missing", !chosen);
+  const blocked = !!(p.capabilities && !p.capabilities.full_firmware && !p.capabilities.candidate_generation);
+  $("btnGenerate").disabled = blocked || !chosen;
+  $("btnGenerate").title = chosen ? "" : "先选择相机使用的菜单语言";
+}
+
+async function setMenuLanguage(code) {
+  if (!state.project || state.project.menu_language === code) return;
+  try {
+    const p = await api("PUT", "/api/projects/" + state.project.id + "/menu-language", { menu_language: code });
+    state.project = { ...state.project, menu_language: p.menu_language };
+    renderMenuLanguage();
+  } catch (e) { toast(e.message, true); renderMenuLanguage(); }
+}
+
 async function generate() {
+  if (!state.project.menu_language) { toast("先选择相机使用的菜单语言", true); return; }
   const candidate = !!(state.project.capabilities && state.project.capabilities.candidate_generation);
   const recipeExtension = candidate && !!state.project.capabilities.candidate_recipe_extension && $("iiixRecipeExtension").checked;
   if (state.project.capabilities && !state.project.capabilities.full_firmware && !candidate) {
@@ -1220,7 +1241,12 @@ function renderPresetCard() {
 
 // The preview shows the user's own photo only (kept in this tab, never uploaded);
 // without one the frame stays black and offers 「换照片」.
-const samples = { mine: null };
+const samples = { mine: null, ar: 0 };  // ar: the photo's width / height once known
+
+function frameShape(frame) {
+  frame.style.setProperty("--ar", String(samples.ar || 1.5));
+  return "";
+}
 
 function sceneBackground() {
   return samples.mine ? 'url("' + samples.mine + '")' : "#111";
@@ -1237,12 +1263,12 @@ function renderSamples() {
   $("sampleEmpty").hidden = !!samples.mine;
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
-  const bg = sceneBackground() + " center / cover no-repeat";
+  const bg = sceneBackground() + " center / contain no-repeat";
   const after = filmBackground(edit);
   $("sampleBefore").style.background = bg;
   $("sampleAfter").style.background = after || bg;
   for (const b of $("viewBtns").children) { const on = b.dataset.view === state.view; b.classList.toggle("on", on); b.setAttribute("aria-checked", on ? "true" : "false"); }
-  $("sampleFrame").className = "v1-frame " + state.view;
+  $("sampleFrame").className = "v1-frame " + state.view + frameShape($("sampleFrame"));
   const previewFailure = state.view === "camera" && window.DarkslideFilm.previewError(s.no, edit);
   if (previewFailure && $("zoomDialog").open) $("zoomDialog").close();
   $("viewNote").textContent = previewFailure ? "相机预览不可用：" + previewFailure + "。当前显示原图；可切换到调后查看原值效果。" : VIEW_NOTES[state.view];
@@ -1255,13 +1281,14 @@ function renderSamples() {
 // The chosen film's approximate preview, shown on the user's own photo only.
 function filmBackground(edit) {
   const url = window.DarkslideFilm.previewUrl(edit, state.view === "camera", slotOf(state.sel).no);
-  return url ? 'url("' + url + '") center / cover no-repeat' : null;
+  return url ? 'url("' + url + '") center / contain no-repeat' : null;
 }
 
 function openZoom() {
   const s = slotOf(state.sel);
   const edit = state.changes[s.no] || {};
-  const bg = sceneBackground() + " center / cover no-repeat";
+  const bg = sceneBackground() + " center / contain no-repeat";
+  frameShape($("zoomFrame"));
   $("zoomTitle").textContent = (edit.name !== undefined ? edit.name : s.name) + " · " + "我的照片";
   if (state.view === "camera" && window.DarkslideFilm.previewError(s.no, edit)) {
     toast("相机预览不可用，请切换到调后查看原值效果", true);
@@ -1466,6 +1493,10 @@ function wireShutdown() {
     if (!f) return;
     if (samples.mine) URL.revokeObjectURL(samples.mine);
     samples.mine = URL.createObjectURL(f);   // stays in this browser tab; never uploaded
+    samples.ar = 0;
+    const probe = new Image();  // naturalWidth/Height follow EXIF orientation, like the backgrounds
+    probe.onload = () => { if (probe.src === samples.mine) { samples.ar = probe.naturalWidth / probe.naturalHeight || 0; renderSamples(); } };
+    probe.src = samples.mine;
     renderSamples();
   });
   $("btnSdUpload").addEventListener("click", () => $("sdInput").click());
@@ -1570,6 +1601,7 @@ function wire() {
 
   $("btnSave").addEventListener("click", saveProject);
   $("btnGenerate").addEventListener("click", generate);
+  $("menuLangSelect").addEventListener("change", (e) => { if (e.target.value) setMenuLanguage(e.target.value); });
   $("btnFilmPrepare").addEventListener("click", prepareFilms);
   $("preflightCancel").addEventListener("click", () => $("preflightDialog").close());
   $("preflightOk").addEventListener("click", async () => {

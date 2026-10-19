@@ -8,7 +8,7 @@ import copy
 import hashlib
 import json
 
-from . import body_target, composite_verify, compositor, fwread, names, pngcheck, rescue_gate, film_requests, template as tpl
+from . import body_target, composite_verify, compositor, fwread, names, pngcheck, rescue_gate, film_requests, template as tpl, menu_language
 
 
 # Display titles for the composite checker's ids (presentation only).
@@ -26,7 +26,7 @@ CHECK_TITLES = {
     "a_path_five_requests_fixed_slot_jpeg": "关机图：五个入口指向同一位置、A 盘路径、图片只多出填充段",
     "entire_payload_matches_independent_request": "整份解码数据与独立推导的预期逐字节一致（没有任何越界改动）",
     "payload_sha": "解码数据 SHA 与生成记录一致",
-    "readback_icons_names": "读回 14 个预设的图标和预设名（英文、简中、日文）",
+    "readback_icons_names": "读回 14 个预设的图标和预设名（英文、简中、繁中、日文）",
     "grain_menu_expected": "负片颗粒菜单项、原九项和相邻字符串独立核对",
     "film_requested_data": "胶片记录、矩阵和完整曲线与所选数据一致",
     "film_code_fields_and_targets": "胶片跳转、选择和后矩阵指令独立核对",
@@ -51,7 +51,8 @@ def slot_keys(changes):
     return sorted((k for k in changes if k != "shutdown"), key=int)
 
 
-def edits_from_changes(store, project_id, changes, template, *, include_films=False, asset_snapshot=None):
+def edits_from_changes(store, project_id, changes, template, *, include_films=False, asset_snapshot=None,
+                       menu_lang=None):
     edits = []
     for key in slot_keys(changes):
         slot = tpl.slot(template, int(key))
@@ -65,7 +66,10 @@ def edits_from_changes(store, project_id, changes, template, *, include_films=Fa
         if "name" in change:
             if not names.name_ok(change["name"], slot.get("name_max", len(slot["factory_en"]))):
                 raise GenerateError("%s 的预设名没有通过检查" % slot["name"])
-            edits.append(dict(kind="name", slot=slot["no"], string_id=slot["string_id"], text=change["name"]))
+            edit = dict(kind="name", slot=slot["no"], string_id=slot["string_id"], text=change["name"])
+            if menu_lang is not None:
+                edit["menu_language"] = menu_lang
+            edits.append(edit)
         if change.get("grain") is True:
             if tpl.grain_stage(template, slot["no"]) != "menu":
                 raise GenerateError("%s 的颗粒项不能由本工具开放" % slot["name"])
@@ -157,6 +161,14 @@ def _run(store, project, template, official_bin, *, film_profiles=None, inplace=
     changes = project.get("changes") or {}
     if not changes:
         raise GenerateError("还没有改动")
+    # The page only enables 生成 once a menu language is chosen; a project without one
+    # (older projects, direct API callers) keeps the 1.0.1 languages.
+    menu_lang = project.get("menu_language")
+    if menu_lang is not None:
+        try:
+            menu_language.validate(menu_lang)
+        except menu_language.MenuLanguageError as exc:
+            raise GenerateError(str(exc))
     try:
         body = body_target.require_family(body_target.of(project), template.get("model"), template.get("firmware"))
     except body_target.BodyTargetError as exc:
@@ -164,7 +176,8 @@ def _run(store, project, template, official_bin, *, film_profiles=None, inplace=
     # Cloud supplies already-fitted camera data. Freeze the handoff once so
     # writing and independent readback observe the same request inputs.
     profiles_snapshot=copy.deepcopy(film_profiles)
-    edits = edits_from_changes(store, project["id"], changes, template, include_films=inplace, asset_snapshot=asset_snapshot)
+    edits = edits_from_changes(store, project["id"], changes, template, include_films=inplace, asset_snapshot=asset_snapshot,
+                               menu_lang=menu_lang)
     custom_hashes={}
     if profiles_snapshot is not None and (inplace or film_requests.available()):
         try:
@@ -221,6 +234,7 @@ def _run(store, project, template, official_bin, *, film_profiles=None, inplace=
         payload_sha256_before=result["payload_sha256_before"],
         payload_sha256_after=result["payload_sha256_after"],
         version_word=result["version_word"], summary=summarize(changes, template, include_films=inplace),
+        menu_language=menu_lang,
         features=features, payload_changes=result["payload_changes"],
         container=result["container"], builder=result["builder"], checks=checks,
         skipped=skipped,

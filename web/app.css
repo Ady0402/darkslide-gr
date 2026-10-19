@@ -187,6 +187,17 @@ div.chip { cursor: default; }
 .seg { display: flex; gap: 4px; background: var(--panel); padding: 3px; }
 .seg button { flex: 1; height: 30px; padding: 0 12px; border: 0; font: inherit; font-size: 12px; background: transparent; color: var(--soft); }
 .seg button.on { background: var(--text); color: var(--bg); font-weight: 500; }
+.ui-lang { display: flex; gap: 2px; background: var(--panel); padding: 3px; flex-shrink: 0; }
+.ui-lang button { min-width: 36px; height: 28px; padding: 0 8px; border: 0; font: inherit; font-size: 12px; cursor: pointer; background: transparent; color: var(--soft); }
+.ui-lang button.on { background: var(--text); color: var(--bg); font-weight: 500; }
+.ui-lang button:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+:root[data-ui-lang="zh-Hant"] { --sans: "PingFang TC", "Noto Sans TC", "Hiragino Sans CNS", system-ui, sans-serif; }
+:root[data-ui-lang="en"] { --sans: system-ui, -apple-system, "Helvetica Neue", "PingFang SC", sans-serif; }
+.menu-lang { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
+.menu-lang-select { width: 100%; height: 34px; padding: 0 10px; font: inherit; font-size: 13px; color: var(--text); background: var(--panel); border: 1px solid var(--line2); border-radius: 0; cursor: pointer; }
+.menu-lang-select:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.menu-lang.missing .menu-lang-select { border-color: var(--warn, #E0B04A); }
+.menu-lang.missing #menuLangLabel { color: var(--warn, #E0B04A); }
 .switch-row { display: flex; align-items: center; gap: 12px; }
 .switch { width: 44px; height: 24px; border: 0; border-radius: 12px; position: relative; cursor: pointer; flex-shrink: 0; background: var(--line); }
 .switch span { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--soft); transition: left 150ms var(--ease); }
@@ -247,8 +258,9 @@ div.chip { cursor: default; }
 
 /* zoom compare */
 .dialog.zoom-dialog { max-width: 1000px; }
-.zoom-frame { position: relative; width: 100%; aspect-ratio: 3 / 2; max-height: 70vh; overflow: hidden; background: #111; }
-.zoom-after, .zoom-before { position: absolute; inset: 0; background: #111 center / cover no-repeat; }
+/* --ar is the photo's own aspect (set from JS); contain never crops it, portrait included. */
+.zoom-frame { position: relative; width: min(100%, calc(70vh * var(--ar, 1.5))); margin: 0 auto; aspect-ratio: var(--ar, 1.5); overflow: hidden; background: #111; }
+.zoom-after, .zoom-before { position: absolute; inset: 0; background: #111 center / contain no-repeat; }
 .zoom-before { clip-path: inset(0 50% 0 0); }
 .zoom-divider { position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: #fff; box-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
 .zoom-frame .zl { left: 10px; top: auto; bottom: 10px; }
@@ -438,9 +450,11 @@ div.chip { cursor: default; }
 .v1-seg button.on { background: var(--text); color: var(--bg); }
 .v1-note { font-size: 11px; color: var(--dim2); }
 .v1-local { margin-left: auto; }
-.v1-stage { background: #1C1C1B; display: flex; justify-content: center; }
-.v1-frame { position: relative; height: min(360px, 42vh); aspect-ratio: 3 / 2; max-width: 100%; overflow: hidden; cursor: zoom-in; display: block; }
-.v1-layer { position: absolute; inset: 0; background: #111 center / cover no-repeat; }
+/* The stage fills the visible height under the bench header (scroll for the panels below);
+   the frame is the largest box of the photo's own aspect (--ar) that fits inside it. */
+.v1-stage { background: #1C1C1B; display: flex; justify-content: center; align-items: center; height: max(320px, calc(100vh - 205px)); container-type: size; }
+.v1-frame { position: relative; height: min(100cqh, 100cqw / var(--ar, 1.5)); aspect-ratio: var(--ar, 1.5); overflow: hidden; cursor: zoom-in; display: block; }
+.v1-layer { position: absolute; inset: 0; background: #111 center / contain no-repeat; }
 .v1-before { clip-path: inset(0 50% 0 0); }
 .v1-divider { position: absolute; top: 0; bottom: 0; left: calc(50% - 1px); width: 2px; background: #fff; box-shadow: 0 0 6px rgba(0, 0, 0, 0.6); }
 .v1-tag { position: absolute; bottom: 10px; font-size: 10px; padding: 2px 6px; z-index: 2; }
@@ -530,8 +544,7 @@ div.chip { cursor: default; }
   body:has(#paneIC:not([hidden])) .work { min-height: 0; height: 100%; }
   body:has(#paneIC:not([hidden])) #viewWork:not([hidden]) { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; }
   .v1-preview { flex: 1 1 auto; min-height: 0; }
-  .v1-stage { flex: 1 1 auto; min-height: 160px; }
-  .v1-frame { height: 100%; max-height: 360px; }
+  .v1-stage { flex: 1 1 0; height: auto; min-height: 160px; }  /* takes all the height the panels leave */
   .v1 > section, .v1-out { flex-shrink: 0; }
   .v1 > .v1-preview { flex-shrink: 1; }
 }
