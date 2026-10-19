@@ -90,13 +90,17 @@
     g.fillStyle = C.dim; g.font = "24px " + FONT; g.fillText(c.sub, PAD + 108, y + 84);
     // picture
     y += 120;
-    const pw = W - 2 * PAD, ph = Math.round(pw * 2 / 3);
+    // the whole photo in its own proportions, never cropped: a landscape one spans the width, a
+    // portrait one is at most 5:4 of the width tall and centred, so the rows below still fit
+    const pw = W - 2 * PAD;
     const pic = await window.DarkslideFilm.gradedCanvas(edit);
-    g.fillStyle = C.panel; g.fillRect(PAD, y, pw, ph);
+    let ph = Math.round(pw * 2 / 3);
     if (pic) {
-      const k = Math.max(pw / pic.width, ph / pic.height), sw = pw / k, sh = ph / k;
-      g.drawImage(pic, (pic.width - sw) / 2, (pic.height - sh) / 2, sw, sh, PAD, y, pw, ph);
-    }
+      let dw = pw, dh = pw * pic.height / pic.width;
+      if (dh > pw * 5 / 4) { dh = pw * 5 / 4; dw = dh * pic.width / pic.height; }
+      dw = Math.round(dw); ph = Math.round(dh);
+      g.drawImage(pic, 0, 0, pic.width, pic.height, PAD + Math.round((pw - dw) / 2), y, dw, ph);
+    } else { g.fillStyle = C.panel; g.fillRect(PAD, y, pw, ph); }
     y += ph + 56;
     // rows
     const keyW = 140, valW = pw - keyW;
