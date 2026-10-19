@@ -1558,5 +1558,10 @@
 "；HSL 分色和自然饱和度相机做不到，新版本里没有。": "; HSL color splitting and Vibrance can't be done by the camera and are not in the new version.",
 "；以下面的自动检查为准。": "; the automatic check below is authoritative.",
 "；几个一起拉时以下面的自动检查为准。": "; when several are adjusted together, the automatic check below is authoritative.",
-"；跳过：": "; skipped:"
+"；跳过：": "; skipped:",
+"标准调节检查数量不匹配": "Standard's adjustment check count does not match",
+"胶片位置的调节检查数量不匹配": "The adjustment check count for the film slot does not match",
+"调节检查尾部结构不匹配": "The structure after an adjustment check does not match",
+"需要不重复的胶片位置": "Film slots must not repeat",
+"已按电脑语言预选，请确认和相机的菜单语言一致。": "Preselected from your computer's language. Please check it matches your camera's menu language."
 }

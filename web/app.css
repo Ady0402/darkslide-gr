@@ -187,17 +187,22 @@ div.chip { cursor: default; }
 .seg { display: flex; gap: 4px; background: var(--panel); padding: 3px; }
 .seg button { flex: 1; height: 30px; padding: 0 12px; border: 0; font: inherit; font-size: 12px; background: transparent; color: var(--soft); }
 .seg button.on { background: var(--text); color: var(--bg); font-weight: 500; }
-.ui-lang { display: flex; gap: 2px; background: var(--panel); padding: 3px; flex-shrink: 0; }
-.ui-lang button { min-width: 36px; height: 28px; padding: 0 8px; border: 0; font: inherit; font-size: 12px; cursor: pointer; background: transparent; color: var(--soft); }
-.ui-lang button.on { background: var(--text); color: var(--bg); font-weight: 500; }
-.ui-lang button:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.ui-lang { position: relative; display: flex; align-items: center; flex-shrink: 0; }
+.ui-lang svg { position: absolute; left: 10px; width: 14px; height: 14px; color: var(--soft); pointer-events: none; }
+.ui-lang select { height: 32px; padding: 0 28px 0 32px; font: inherit; font-size: 12px; color: var(--text); background: var(--panel); border: 1px solid var(--line2); border-radius: 0; cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--soft) 50%), linear-gradient(135deg, var(--soft) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 14px, calc(100% - 10px) 14px; background-size: 5px 5px; background-repeat: no-repeat; }
+.ui-lang select:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 :root[data-ui-lang="zh-Hant"] { --sans: "PingFang TC", "Noto Sans TC", "Hiragino Sans CNS", system-ui, sans-serif; }
 :root[data-ui-lang="en"] { --sans: system-ui, -apple-system, "Helvetica Neue", "PingFang SC", sans-serif; }
+:root[data-ui-lang="ja"] { --sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", system-ui, sans-serif; }
+:root[data-ui-lang="ko"] { --sans: "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif; }
 .menu-lang { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 10px; }
 .menu-lang-select { width: 100%; height: 34px; padding: 0 10px; font: inherit; font-size: 13px; color: var(--text); background: var(--panel); border: 1px solid var(--line2); border-radius: 0; cursor: pointer; }
 .menu-lang-select:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
 .menu-lang.missing .menu-lang-select { border-color: var(--warn, #E0B04A); }
 .menu-lang.missing #menuLangLabel { color: var(--warn, #E0B04A); }
+.menu-lang-auto { color: var(--warn, #E0B04A); }
 .switch-row { display: flex; align-items: center; gap: 12px; }
 .switch { width: 44px; height: 24px; border: 0; border-radius: 12px; position: relative; cursor: pointer; flex-shrink: 0; background: var(--line); }
 .switch span { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--soft); transition: left 150ms var(--ease); }

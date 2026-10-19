@@ -1024,9 +1024,31 @@ async function prepareFilms() {
 
 // ---------------------------------------------------------------- generate
 // The camera menu language the firmware is made for; 生成 stays off until one is chosen.
+// A project without one gets the computer's language preselected (and saved), with a
+// note to check it against the camera; picking another one by hand removes the note.
+const MENU_LANGS = ["ja", "en", "fr", "de", "es", "pt", "it", "nl", "da", "sv", "fi", "pl", "cs", "hu",
+  "tr", "el", "ru", "ko", "zh-TW", "zh-CN", "th"];
+function guessMenuLanguage() {
+  const tags = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || ""];
+  for (const tag of tags) {
+    const t = String(tag).toLowerCase();
+    if (/^zh-(tw|hk|mo)\b|hant/.test(t)) return "zh-TW";
+    if (t.startsWith("zh")) return "zh-CN";
+    const base = t.split("-")[0];
+    if (MENU_LANGS.includes(base)) return base;
+  }
+  return null;
+}
+
 function renderMenuLanguage() {
   const p = state.project || {};
+  if (p.id && !p.menu_language && !(state.menuLangTried || {})[p.id]) {
+    state.menuLangTried = { ...(state.menuLangTried || {}), [p.id]: true };
+    const guess = guessMenuLanguage();
+    if (guess) { setMenuLanguage(guess, true); }
+  }
   const chosen = p.menu_language || "";
+  $("menuLangAuto").hidden = !(p.id && state.menuLangAuto === p.id && chosen);
   $("menuLangSelect").value = chosen;
   $("menuLangBlock").classList.toggle("missing", !chosen);
   const blocked = !!(p.capabilities && !p.capabilities.full_firmware && !p.capabilities.candidate_generation);
@@ -1034,10 +1056,15 @@ function renderMenuLanguage() {
   $("btnGenerate").title = chosen ? "" : "先选择相机使用的菜单语言";
 }
 
-async function setMenuLanguage(code) {
-  if (!state.project || state.project.menu_language === code) return;
+async function setMenuLanguage(code, auto = false) {
+  if (!state.project) return;
+  if (!auto) state.menuLangAuto = null;  // chosen by hand: no reminder
+  if (state.project.menu_language === code) { renderMenuLanguage(); return; }
+  const pid = state.project.id;
   try {
-    const p = await api("PUT", "/api/projects/" + state.project.id + "/menu-language", { menu_language: code });
+    const p = await api("PUT", "/api/projects/" + pid + "/menu-language", { menu_language: code });
+    if (!state.project || state.project.id !== pid) return;  // switched project meanwhile
+    if (auto) state.menuLangAuto = pid;
     state.project = { ...state.project, menu_language: p.menu_language };
     renderMenuLanguage();
   } catch (e) { toast(e.message, true); renderMenuLanguage(); }

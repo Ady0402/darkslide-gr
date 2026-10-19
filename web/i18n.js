@@ -1,4 +1,4 @@
-// Interface language: 繁體中文 / 简体中文 / English.
+// Interface language: 简体中文 / 繁體中文 / English / 日本語 / 한국어.
 // The page is written in Simplified Chinese; this file rewrites what is on screen —
 // static markup, text the scripts build later, server messages, tooltips — by
 // watching the document. Data comes from i18n-data.js (built by tools/i18n_build.py).
@@ -6,11 +6,13 @@
 // then known strings as fragments, then (繁體) a per-character map.
 (function () {
   "use strict";
-  const DATA = window.DarkslideI18nData || { en: {}, hant: { strings: {}, chars: {} } };
+  const DATA = window.DarkslideI18nData || { en: {}, ja: {}, ko: {}, hant: { strings: {}, chars: {} } };
   const LANGS = [
     { code: "zh-Hans", label: "简体中文", short: "简" },
     { code: "zh-Hant", label: "繁體中文", short: "繁" },
     { code: "en", label: "English", short: "EN" },
+    { code: "ja", label: "日本語", short: "日" },
+    { code: "ko", label: "한국어", short: "한" },
   ];
   const KEY = "darkslide.uiLang";
   const CJK = /[㐀-鿿]/;
@@ -32,6 +34,8 @@
       if (/^zh-(tw|hk|mo)\b|hant/.test(t)) return "zh-Hant";
       if (t.startsWith("zh")) return "zh-Hans";
       if (t.startsWith("en")) return "en";
+      if (t.startsWith("ja")) return "ja";
+      if (t.startsWith("ko")) return "ko";
     }
     return "en";
   }
@@ -60,7 +64,8 @@
     return { exact, patterns, fragRe };
   }
 
-  const TABLES = { en: compile(DATA.en || {}), "zh-Hant": compile((DATA.hant || {}).strings || {}) };
+  const TABLES = { en: compile(DATA.en || {}), ja: compile(DATA.ja || {}), ko: compile(DATA.ko || {}),
+                   "zh-Hant": compile((DATA.hant || {}).strings || {}) };
   const CHARS = (DATA.hant || {}).chars || {};
   let lang = initial();
   let cache = new Map();
@@ -191,47 +196,34 @@
     document.dispatchEvent(new CustomEvent("darkslide:lang", { detail: code }));
   }
 
-  // --- the switch in the header ------------------------------------------
+  // --- the language menu in the header -----------------------------------
+  // A dropdown: each language written in its own script, so anyone can find theirs.
   function renderSwitch() {
-    const box = document.getElementById("uiLang");
-    if (!box) return;
-    for (const b of box.querySelectorAll("button")) {
-      const on = b.dataset.lang === lang;
-      b.classList.toggle("on", on);
-      b.setAttribute("aria-checked", on ? "true" : "false");
-      b.tabIndex = on ? 0 : -1;
-    }
+    const select = document.getElementById("uiLangSelect");
+    if (select && select.value !== lang) select.value = lang;
   }
 
   function buildSwitch() {
     const top = document.querySelector("header.top");
     if (!top || document.getElementById("uiLang")) return;
-    const box = document.createElement("div");
+    const box = document.createElement("label");
     box.id = "uiLang";
     box.className = "ui-lang";
-    box.setAttribute("role", "radiogroup");
-    box.setAttribute("aria-label", "Language / 語言 / 语言");
     box.setAttribute("translate", "no");
+    box.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">' +
+      '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></svg>';
+    const select = document.createElement("select");
+    select.id = "uiLangSelect";
+    select.setAttribute("aria-label", "Language / 語言 / 语言 / 言語 / 언어");
     for (const l of LANGS) {
-      const b = document.createElement("button");
-      b.type = "button";
-      b.dataset.lang = l.code;
-      b.setAttribute("role", "radio");
-      b.setAttribute("lang", l.code);
-      b.title = l.label;
-      b.textContent = l.short;
-      b.addEventListener("click", () => setLang(l.code));
-      box.appendChild(b);
+      const o = document.createElement("option");
+      o.value = l.code;
+      o.lang = l.code;
+      o.textContent = l.label;
+      select.appendChild(o);
     }
-    box.addEventListener("keydown", (e) => {
-      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
-      if (!step) return;
-      e.preventDefault();
-      const list = [...box.querySelectorAll("button")];
-      const next = list[(list.findIndex((b) => b.dataset.lang === lang) + step + list.length) % list.length];
-      setLang(next.dataset.lang);
-      next.focus();
-    });
+    select.addEventListener("change", () => setLang(select.value));
+    box.appendChild(select);
     const settings = document.getElementById("btnSettings");
     top.insertBefore(box, settings && settings.parentElement === top ? settings : null);
     renderSwitch();

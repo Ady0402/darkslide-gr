@@ -57,7 +57,7 @@ Give the presets in your GR III menu **your own icons and names**. For example, 
 | Custom 1/2 | — | — |
 
 - **Two ways to make an icon**: upload any image and frame it with the crop box, or type a few letters to generate a text icon in the factory style.
-- **Preset names**: checked as you type, e.g. characters the camera can't display; typing stops at the length limit. The English menu and the camera menu language you pick above Generate (any of the firmware's 21 languages) show the new name, other languages keep the factory name (Traditional Chinese was confirmed on a GR III HDF; the other added languages are untested on a camera); when a name is longer than the factory English name, one less common menu language also shows the new name.
+- **Preset names**: checked as you type, e.g. characters the camera can't display; typing stops at the length limit. The English menu and the camera menu language you pick above Generate (any of the firmware's 21 languages; new projects preselect your computer's language, so check it matches the camera) show the new name, other languages keep the factory name (Traditional Chinese was confirmed on a GR III HDF; the other added languages are untested on a camera); when a name is longer than the factory English name, one less common menu language also shows the new name.
 - **What it never touches**: apart from the films you install and Negative Film grain, colour rendering, image-quality parameters and all other settings stay as they are. The firmware version number does not change (GR III stays 2.10, GR IIIx stays 1.60). The detail-settings card shows each preset's factory default values for reference only; you adjust them yourself in the camera menu, and they are not written into the firmware.
 - **Projects**: drafts are saved automatically; save multiple versions, undo and redo, and pick up where you left off.
 
@@ -128,7 +128,7 @@ Upload a picture; it is cropped to 3:2 and converted to the camera format. The f
 - One more check that does not depend on what you changed: the version number is unchanged (GR III 2.10, GR IIIx 1.60), and the boot records and the firmware-update regions identified by the author's analysis are byte-for-byte untouched. This is meant to keep the official original usable for flashing back; flashing the official original back has been tested successfully on one GR III; this is still an offline check plus one camera, not a guarantee, and a camera that cannot power on at all is not covered.
 - A built-in recovery guide shows you how to prepare a recovery card before flashing and how to flash back to official firmware if something goes wrong.
 
-The interface is currently in Chinese.
+The interface is available in 简体中文, 繁體中文, English, 日本語 and 한국어: it follows your system language, and you can change it from the language menu at the top right. The Traditional Chinese, English, Japanese and Korean texts were translated with AI assistance; corrections are welcome.
 
 ## Screens
 

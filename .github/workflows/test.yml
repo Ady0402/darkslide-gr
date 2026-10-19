@@ -1,0 +1,28 @@
+# Offline tests on every pull request and every push to main.
+# Tests that need the official RICOH firmware skip themselves: no firmware is ever
+# uploaded here. This only reports ✅/❌; it never merges, publishes or writes.
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Offline test suite
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python3 -m unittest discover -s tests

@@ -122,7 +122,8 @@ def py_literals(src):
     return out
 
 
-def main():
+def collect():
+    """Every interface string with Chinese in it -> the file it was first found in."""
     found = {}
     parser = Html()
     parser.feed((ROOT / "web/index.html").read_text(encoding="utf-8"))
@@ -147,10 +148,14 @@ def main():
                 walk(item, name)
     for path in sorted(list((ROOT / "templates").glob("*.json")) + list((ROOT / "film_curves").glob("*.json"))):
         walk(json.loads(path.read_text(encoding="utf-8")), path.name)
-    found = {k: v for k, v in found.items() if k and CJK.search(k)}
+    return dict(sorted((k, v) for k, v in found.items() if k and CJK.search(k)))
+
+
+def main():
+    found = collect()
     out = ROOT / "tools/i18n/source.json"
     out.parent.mkdir(exist_ok=True)
-    out.write_text(json.dumps(dict(sorted(found.items())), ensure_ascii=False, indent=0) + "\n", encoding="utf-8")
+    out.write_text(json.dumps(found, ensure_ascii=False, indent=0) + "\n", encoding="utf-8")
     print("%d strings -> %s" % (len(found), out.relative_to(ROOT)), file=sys.stderr)
 
 
