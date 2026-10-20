@@ -88,12 +88,14 @@ func main() {
 	// The port comes first: the page's origin is the one origin trusted to call Go.
 	port, portErr := freePort()
 	srv.port = port
+	local = "http://127.0.0.1:" + strconv.Itoa(port)
 	var win *mygo.Window
-	page := mygo.PageOptions{TrustedOrigins: []string{"http://127.0.0.1:" + strconv.Itoa(port)}}
-	if bridgeBlobs() {
-		page.PreloadScript = blobBridge
+	preload := fetchBridge
+	if bridgeDownloads() {
+		preload += "\n" + blobBridge + "\n" + linkBridge
 	}
-	mygo.Bind(&Downloads{})
+	page := mygo.PageOptions{TrustedOrigins: []string{local}, PreloadScript: preload}
+	mygo.Bind(&Downloads{}, &Local{})
 
 	mygo.App.OnSecondInstance(func([]string, string) {
 		if win != nil {

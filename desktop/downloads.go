@@ -41,10 +41,11 @@ const blobBridge = `(() => {
   }, true);
 })();`
 
-// bridgeBlobs says whether pages get blobBridge: on Windows, and anywhere
-// with DARKSLIDE_BLOB_BRIDGE=1, to test it.
-func bridgeBlobs() bool {
-	return runtime.GOOS == "windows" || os.Getenv("DARKSLIDE_BLOB_BRIDGE") == "1"
+// bridgeDownloads says whether pages get blobBridge and linkBridge, which save
+// downloads through Go: on Windows, and anywhere with DARKSLIDE_DOWNLOAD_BRIDGE=1,
+// to test them.
+func bridgeDownloads() bool {
+	return runtime.GOOS == "windows" || os.Getenv("DARKSLIDE_DOWNLOAD_BRIDGE") == "1"
 }
 
 // downloadDir is where Save writes; selftest builds point it elsewhere.
@@ -67,6 +68,24 @@ func (Downloads) Save(name, data, url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	dir, err := downloadDir()
+	if err != nil {
+		return "", err
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	path := numbered(filepath.Join(dir, cleanName(name)))
+	err = os.WriteFile(path, raw, 0o644)
+	if err != nil {
+		path = ""
+	}
+	mygo.RunOnMain(func() { downloadDone(&mygo.Download{URL: url, Path: path, Err: err}) })
+	return path, err
+}
+
+// cleanName makes a name the page suggests safe as a file name in one folder.
+func cleanName(name string) string {
 	name = filepath.Base(filepath.Clean("/" + strings.ReplaceAll(name, `\`, "/")))
 	name = strings.Map(func(r rune) rune {
 		if r < 0x20 || strings.ContainsRune(`<>:"|?*`, r) {
@@ -75,22 +94,9 @@ func (Downloads) Save(name, data, url string) (string, error) {
 		return r
 	}, name)
 	if name == "/" || name == "." || name == "" {
-		name = "download"
+		return "download"
 	}
-	dir, err := downloadDir()
-	if err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return "", err
-	}
-	path := numbered(filepath.Join(dir, name))
-	err = os.WriteFile(path, raw, 0o644)
-	if err != nil {
-		path = ""
-	}
-	mygo.RunOnMain(func() { downloadDone(&mygo.Download{URL: url, Path: path, Err: err}) })
-	return path, err
+	return name
 }
 
 // numbered gives path a number, "name (2).ext", when a file has its name.

@@ -290,7 +290,7 @@ def generate_and_download(origin, firmware, work, report, luts=None, settle=0):
     if not ok:
         link = run_js('(() => { const a = document.getElementById("dlFirmware"); return JSON.stringify({href: a.getAttribute("href"), download: a.download, shown: !!a.offsetParent}); })()')
         detail = "events %s; folder %s; link %s" % (json.dumps(downloads()[before:], ensure_ascii=False),
-                                                    sorted(os.listdir(os.environ.get("DARKSLIDE_SELFTEST_DOWNLOADS", "."))), link)
+                                                    sorted(os.listdir(work / "downloads")), link)
     check("download the firmware through 下载固件", ok, detail)
 
 
