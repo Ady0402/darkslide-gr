@@ -257,9 +257,10 @@ def generate_and_download(origin, firmware, work, report, luts=None):
         out = run_js("""(() => {
           const open = [...document.querySelectorAll("dialog[open]")];
           if (open.length) return JSON.stringify({done: true, ok: false, title: "dialog", text: open.map((x) => x.id + ": " + x.innerText.slice(0, 300)).join(" | ")});
-          const ok = !document.getElementById("doneDownloads").hidden, failed = document.getElementById("doneMore").open;
-          return JSON.stringify({done: ok || failed, ok, title: document.getElementById("doneTitle").textContent,
-            text: document.getElementById("doneText").textContent + " " + (failed ? document.getElementById("doneChecks").innerText.slice(0, 1500) : ""),
+          // showPending hides 查看明细 and showResult shows it, whether it worked or not.
+          const ok = !document.getElementById("doneDownloads").hidden, ended = !document.getElementById("doneMore").hidden;
+          return JSON.stringify({done: ok || ended, ok, title: document.getElementById("doneTitle").textContent,
+            text: document.getElementById("doneText").textContent + " " + (ended && !ok ? document.getElementById("doneChecks").innerText.slice(0, 1500) : ""),
             href: document.getElementById("dlFirmware").getAttribute("href")});
         })()""")
         if out["done"] or time.monotonic() - started > 3600:
