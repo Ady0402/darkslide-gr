@@ -21,14 +21,12 @@ import hashlib
 import json
 import os
 import platform
-import struct
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.parse
 import urllib.request
-import zlib
 from pathlib import Path
 
 CONTROL_PORT = 9911
@@ -141,16 +139,10 @@ def make_fixtures(work):
         cube = work / ("selftest-%s.cube" % look)
         cube.write_bytes(('TITLE "Selftest %s"\nLUT_3D_SIZE %d\n' % (look.title(), n) + "\n".join(rows) + "\n").encode("ascii"))
         cubes[look] = cube
-
-    w = h = 320
-    raw = b"".join(b"\0" + bytes(v for x in range(w) for v in ((x * 255) // w, (y * 255) // h, 160, 255)) for y in range(h))
-
-    def chunk(kind, data):
-        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
-    icon = work / "selftest-icon.png"
-    icon.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
-                     + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
-    return cubes, icon, REPO / "tests" / "fixtures" / "shutdown_gradient.jpg"
+    # One picture, a JPEG photo as most are, for both the icon and the shutdown picture:
+    # what differs between platforms is then the page's handling, not the input.
+    picture = REPO / "tests" / "fixtures" / "shutdown_gradient.jpg"
+    return cubes, picture, picture
 
 
 HELPERS = """
@@ -182,6 +174,25 @@ def generate_and_download(origin, firmware, work, report, luts=None, settle=0):
         cubes = {Path(path).stem: Path(path) for path, _ in luts}
     report["inputs"] = dict({"firmware": sha256(firmware), "icon": sha256(icon), "shutdown": sha256(shutdown), "recipe": RECIPE},
                             **{"cube " + look: sha256(path) for look, path in cubes.items()})
+    # The picture's pixels as this webview decodes them, at full size: with the page's
+    # default decoding, without colour management, and through an <img> as loadImage does.
+    # Equal everywhere means a deterministic resize alone makes the page's output equal.
+    report["decoded"] = run_js("""(async () => {
+      const blob = await (await fetch(%s)).blob();
+      const hash = async (source) => {
+        const c = document.createElement("canvas"); c.width = source.width; c.height = source.height;
+        const g = c.getContext("2d"); g.drawImage(source, 0, 0);
+        const px = g.getImageData(0, 0, c.width, c.height).data;
+        const d = new Uint8Array(await crypto.subtle.digest("SHA-256", px));
+        return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+      };
+      const img = new Image(); img.src = URL.createObjectURL(blob); await img.decode();
+      return JSON.stringify({
+        "bitmap default": await hash(await createImageBitmap(blob)),
+        "bitmap no colour management": await hash(await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" })),
+        "img element": await hash(img),
+      });
+    })()""" % json.dumps(file_url(icon)))
     out = run_js("""(async () => { %s
       const blob = await (await fetch(%s)).blob();
       await importFile(new File([blob], %s));
@@ -220,7 +231,7 @@ def generate_and_download(origin, firmware, work, report, luts=None, settle=0):
       await pickSlot(%(grade)d);
       setEdit(%(grade)d, "grade", %(values)s);
       await pickSlot(%(icon)d);
-      await choose("imageInput", %(png)s, "selftest-icon.png", "image/png");
+      await choose("imageInput", %(png)s, "picture.jpg", "image/jpeg");
       await until(() => document.getElementById("cropDialog").open);
       await wait(500);
       document.getElementById("cropApply").click();

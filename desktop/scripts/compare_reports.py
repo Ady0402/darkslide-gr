@@ -25,6 +25,7 @@ def rows(report):
         ("input: shutdown picture", inputs.get("shutdown")),
         ("input: recipe", json.dumps(inputs.get("recipe"), sort_keys=True)),
         ("fitting component", (report.get("fitting") or {}).get("state")),
+    ] + [("decoded picture: " + how, digest) for how, digest in sorted((report.get("decoded") or {}).items())] + [
     ]
     for no, edit in sorted((k, v) for k, v in changes.items() if k != "shutdown"):
         for key, value in sorted(edit.items()):
