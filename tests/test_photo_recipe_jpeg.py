@@ -4,7 +4,10 @@ import struct
 import unittest
 import zlib
 from unittest.mock import patch
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:  # Pillow is only needed by these tests, not by the program
+    raise unittest.SkipTest("Pillow not installed")
 from darkslide import photo_recipe_jpeg as J, photo_recipe as P, film_profiles as F, models, server
 import test_iiix_desktop as desktop
 request = desktop.request

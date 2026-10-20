@@ -97,6 +97,11 @@ class Search(unittest.TestCase):
         return fn(api or Api(), models.GR3.id, {}, {}, *args, **kw)
 
     def test_only_the_sliders_asked_for_are_worked_out_and_more_can_join(self):
+        # The batch size follows the machine's cores; pin it to a desktop's 8 so a
+        # 3-core CI runner (one worker) checks the same first batch.
+        workers = patch.object(lut_ranges, "worker_count", return_value=8)
+        workers.start()
+        self.addCleanup(workers.stop)
         calls, saved = [], {}
 
         def rule(text):

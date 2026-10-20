@@ -13,7 +13,7 @@ import threading
 import webbrowser
 
 if sys.version_info < (3, 9):
-    sys.exit("Darkslide 需要 Python 3.9 或更新版本")
+    sys.exit("DARKSLIDE GR 需要 Python 3.9 或更新版本")
 
 from darkslide import VERSION  # noqa: E402
 from darkslide.server import create_server  # noqa: E402
@@ -60,8 +60,8 @@ def main(argv=None):
         address = "http://127.0.0.1:%d/" % httpd.server_address[1]
         worker = threading.Thread(target=httpd.serve_forever, name="darkslide-serve", daemon=True)
         worker.start()
-        say("Darkslide GR %s 正在运行，地址 %s" % (VERSION, address),
-            "Darkslide GR %s is running at %s" % (VERSION, address))
+        say("DARKSLIDE GR %s 正在运行，地址 %s" % (VERSION, address),
+            "DARKSLIDE GR %s is running at %s" % (VERSION, address))
         say("用完后在网页「设置」里点「退出」，或回到这里按 Ctrl+C。",
             "To stop it: Settings > Quit in the page, or Ctrl+C here.")
         try:
@@ -74,7 +74,7 @@ def main(argv=None):
     ranges = sys.modules.get("darkslide.lut_ranges")
     if ranges is not None:  # background slider-range work: drop what is still queued instead of finishing it
         ranges.JOBS.stop()
-    say("Darkslide GR 已停止，这个窗口可以关了。", "Darkslide stopped.")
+    say("DARKSLIDE GR 已停止，这个窗口可以关了。", "DARKSLIDE GR stopped.")
 
 
 if __name__ == "__main__":

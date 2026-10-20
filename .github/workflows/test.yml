@@ -6,7 +6,8 @@ name: tests
 on:
   pull_request:
   push:
-    branches: [main]
+    # main, plus temporary "ci-check-*" branches used to try a release on GitHub first
+    branches: [main, "ci-check-*"]
 
 permissions:
   contents: read
@@ -22,6 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Test-only dependency (the program itself needs none)
+        run: python3 -m pip install --quiet pillow
       - name: Offline test suite
         env:
           PYTHONDONTWRITEBYTECODE: "1"

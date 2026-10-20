@@ -98,10 +98,10 @@ const SERIES = [
     fw: "fwdc239b.bin", ver: "2.10", zip: "gr3_v210.zip", licence: "https://www.ricoh-imaging.co.jp/english/support/digital/gr3_s.html",
     note: "同一个固件文件通用于 GR III、街拍版、日记版、HDF。",
     models: [["GR III", "标准版", true], ["GR III Street Edition", "街拍版"], ["GR III Diary Edition", "日记版"], ["GR III HDF", "带柔光滤镜", true]] },
-  { name: "GR IIIx 系列", short: "GR IIIx", desc: "40mm · 固件 1.60 · 3 个型号共用", tag: "已适配 · 未实测", ready: false,
+  { name: "GR IIIx 系列", short: "GR IIIx", desc: "40mm · 固件 1.60 · 3 个型号共用", tag: "可用", ready: false,
     fw: "fwdc243b.bin", ver: "1.60", zip: "gr3x_v160.zip", licence: "https://www.ricoh-imaging.co.jp/english/support/digital/gr3x_s.html",
-    note: "同一个固件文件通用于 GR IIIx、城市版、HDF。这一版的 GR IIIx 支持还在合并中，暂时不能导入。",
-    models: [["GR IIIx", "标准版"], ["GR IIIx Urban Edition", "城市版"], ["GR IIIx HDF", "带柔光滤镜"]] },
+    note: "同一个固件文件通用于 GR IIIx、城市版、HDF。",
+    models: [["GR IIIx", "标准版", true], ["GR IIIx Urban Edition", "城市版"], ["GR IIIx HDF", "带柔光滤镜"]] },
   { name: "GR IV", short: "GR IV", desc: "28mm · 新一代", tag: "适配中", off: true, models: [] },
 ];
 const CAM_KEY = "darkslide.camera";
@@ -1085,12 +1085,12 @@ async function generate() {
   if (!Object.keys(state.changes).length && !recipeExtension) { toast("还没有改动", true); return; }
   if (!(state.status.prefs || {}).preflight_seen) {
     $("preflightRecovery").textContent = candidate
-      ? "本次为 GR IIIx 1.60 离线候选，官方原件为 fwdc243b.bin；安装和同版本回刷尚未实机验证。"
+      ? "本次为 GR IIIx 1.60 固件，官方原件为 fwdc243b.bin；标准版已有用户实机刷入使用，城市版、HDF 和刷回官方 1.60 尚未实机验证。"
       : "准备一张只放官方 2.10 原件 fwdc239b.bin 的救机卡。";
     $("preflightDialog").showModal(); return;
   }
-  // Every IIIx candidate asks again: nothing in the IIIx line has been tested on a camera yet.
-  if (candidate && !state.untestedAck) {
+  // IIIx models other than the standard one (tested on a camera by a user) ask again every time.
+  if (candidate && state.project.camera_variant !== "GR IIIx" && !state.untestedAck) {
     const body = state.project.camera_variant || state.project.target_body || "";
     $("untestedBody").textContent = body ? "（这次是 " + body + "）" : "";
     $("untestedExtension").hidden = !recipeExtension;
@@ -1727,6 +1727,8 @@ function renderRescue() {
   document.querySelectorAll(".rescue-file").forEach((n) => { n.textContent = r.file; });
   $("rescueTested").textContent = r.model === "GR III"
     ? "同一版本可以重复更新：已在一台 GR III 上实测，改过的 2.10 可以刷入 2.10 机身，也可以再刷回官方 2.10 原件。"
+    : r.model === "GR IIIx"
+    ? "GR IIIx 标准版已有用户实机刷入改过的 1.60 并正常使用；能不能再刷回官方 1.60 原件还没有在真机上验证过，城市版和 HDF 也还没有实测。"
     : r.model + " 属于“已适配 · 未实测”：改过的 " + r.ver + " 能不能刷进机身、能不能再刷回官方 " + r.ver + " 原件，都还没有在真机上验证过。";
 }
 
