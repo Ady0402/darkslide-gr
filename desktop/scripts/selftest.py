@@ -281,11 +281,31 @@ def generate_and_download(origin, firmware, work, report, luts=None, settle=0):
     manifest = json.load(urllib.request.urlopen(origin + out["href"].replace("/firmware", "/manifest")))
     report["manifest"] = manifest
     report["firmware_sha256"] = manifest["output_sha256"]
+    report["regions"] = regions(urllib.request.urlopen(origin + out["href"], timeout=120).read(), manifest)
     before = len(downloads())
     run_js('(() => { document.getElementById("dlFirmware").click(); return "clicked"; })()')
     row = wait_download(out["href"], before)
-    check("download the firmware through 下载固件", row and not row["Err"] and sha256(row["Path"]) == manifest["output_sha256"],
-          row and (row["Err"] or row["Path"]))
+    ok = row and not row["Err"] and sha256(row["Path"]) == manifest["output_sha256"]
+    detail = row and (row["Err"] or row["Path"])
+    if not ok:
+        link = run_js('(() => { const a = document.getElementById("dlFirmware"); return JSON.stringify({href: a.getAttribute("href"), download: a.download, shown: !!a.offsetParent}); })()')
+        detail = "events %s; folder %s; link %s" % (json.dumps(downloads()[before:], ensure_ascii=False),
+                                                    sorted(os.listdir(os.environ.get("DARKSLIDE_SELFTEST_DOWNLOADS", "."))), link)
+    check("download the firmware through 下载固件", ok, detail)
+
+
+def regions(firmware, manifest):
+    """SHA-256 of the bytes the generator wrote, by what they are (film, icon, names, the
+    shutdown picture...), read back with the project's own fwread: where two platforms'
+    firmware differ, this says which part does."""
+    sys.path.insert(0, str(REPO))
+    from darkslide import fwread
+    payload = fwread.unpack(firmware)
+    groups = {"payload (must match payload_sha256_after)": hashlib.sha256(payload)}
+    for change in sorted(manifest["payload_changes"], key=lambda c: c["offset"]):
+        h = groups.setdefault(change.get("what") or "film: " + str(change.get("kind")), hashlib.sha256())
+        h.update(payload[change["offset"]:change["offset"] + change["length"]])
+    return {what: h.hexdigest() for what, h in groups.items()}
 
 
 def main():

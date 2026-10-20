@@ -44,6 +44,7 @@ def rows(report):
         ("generator: payload after", manifest.get("payload_sha256_after")),
         ("generator: offline checks", "%d/%d passed" % (sum(1 for c in manifest.get("checks", []) if c.get("ok")), len(manifest.get("checks", [])))
          if manifest else None),
+    ] + [("written bytes: " + what, digest) for what, digest in sorted((report.get("regions") or {}).items())] + [
         ("firmware SHA-256", report.get("firmware_sha256")),
     ]
     return out
