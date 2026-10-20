@@ -98,6 +98,48 @@ jobs:
           done
           true
 
+  # How long the read-only camera emulation behind every fit takes on each platform,
+  # with the Python the app bundles. The server stops it at 60 s; this job lifts the
+  # limit in its own process (darkslide/ is unchanged) to measure the real time.
+  emulation-timing:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, dir: windows-amd64, python: resources/windows-amd64/python/python.exe }
+          - { os: macos-latest, dir: darwin-arm64, python: resources/darwin-arm64/python/bin/python3 }
+          - { os: macos-15-intel, dir: darwin-amd64, python: resources/darwin-amd64/python/bin/python3 }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Bundled Python
+        run: python scripts/fetch_python.py --platform ${{ matrix.dir }}
+      - name: Firmware (from RICOH, kept on the runner)
+        run: python ci/fetch_inputs.py "$RUNNER_TEMP/inputs"
+      - name: Time the emulation
+        run: |
+          ${{ matrix.python }} -E -s -B ci/time_emulation.py "$RUNNER_TEMP/inputs/fwdc239b.bin" "timing-${{ matrix.dir }}.json"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"; cat "timing-${{ matrix.dir }}.json" >> "$GITHUB_STEP_SUMMARY"; echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: timing-${{ matrix.dir }}
+          path: desktop/timing-${{ matrix.dir }}.json
+          if-no-files-found: ignore
+          retention-days: 14
+
   compare:
     needs: selftest
     if: always()
