@@ -1,0 +1,15 @@
+{
+  "name": "Darkslide GR",
+  "identifier": "io.github.liormoment.darkslide-gr",
+  "version": "1.3.0",
+  "copyright": "Darkslide GR contributors",
+  "resources": [
+    "../launcher.py",
+    "../darkslide",
+    "../web",
+    "../templates",
+    "../film_curves",
+    "../LICENSE",
+    "../THIRD_PARTY_NOTICES.md"
+  ]
+}
