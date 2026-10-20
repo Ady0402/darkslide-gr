@@ -250,19 +250,25 @@ def generate_and_download(origin, firmware, work, report, luts=None):
       if (d.open) [...d.querySelectorAll("button")].find((b) => /继续|繼續|Continue/i.test(b.innerText)).click();
       return "started";
     })()""")
-    out = run_js("""(async () => {
-      for (let i = 0; i < 1800; i++) {
-        if (!document.getElementById("doneDownloads").hidden) break;
-        if (document.getElementById("doneMore").open) break;
-        const open = [...document.querySelectorAll("dialog[open]")];
-        if (open.length) return JSON.stringify({ok: false, title: "dialog", text: open.map((x) => x.id + ": " + x.innerText.slice(0, 300)).join(" | ")});
-        await new Promise((r) => setTimeout(r, 500));
-      }
-      const a = document.getElementById("dlFirmware");
-      return JSON.stringify({ok: !document.getElementById("doneDownloads").hidden, title: document.getElementById("doneTitle").textContent,
-        text: document.getElementById("doneText").textContent + " " + document.getElementById("doneChecks").innerText.slice(0, 1500),
-        href: a.getAttribute("href")});
-    })()""", timeout=1000)
+    # Fitting four LUTs takes minutes, many on a slow machine: ask once a minute, print what
+    # the page says, give up after an hour.
+    started, last = time.monotonic(), ""
+    while True:
+        out = run_js("""(() => {
+          const open = [...document.querySelectorAll("dialog[open]")];
+          if (open.length) return JSON.stringify({done: true, ok: false, title: "dialog", text: open.map((x) => x.id + ": " + x.innerText.slice(0, 300)).join(" | ")});
+          const ok = !document.getElementById("doneDownloads").hidden, failed = document.getElementById("doneMore").open;
+          return JSON.stringify({done: ok || failed, ok, title: document.getElementById("doneTitle").textContent,
+            text: document.getElementById("doneText").textContent + " " + (failed ? document.getElementById("doneChecks").innerText.slice(0, 1500) : ""),
+            href: document.getElementById("dlFirmware").getAttribute("href")});
+        })()""")
+        if out["done"] or time.monotonic() - started > 3600:
+            break
+        if out["text"] != last:
+            print("    %3.0f min  %s %s" % ((time.monotonic() - started) / 60, out["title"], out["text"][:100]), flush=True)
+            last = out["text"]
+        time.sleep(15)
+    report["generate_seconds"] = round(time.monotonic() - started)
     if not check("generate a firmware", out["ok"], out["title"] + " " + out["text"][:200]):
         report["generate_error"] = out
         return

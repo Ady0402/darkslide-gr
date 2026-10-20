@@ -85,7 +85,15 @@ func main() {
 		return
 	}
 	srv := &server{done: make(chan struct{})}
+	// The port comes first: the page's origin is the one origin trusted to call Go.
+	port, portErr := freePort()
+	srv.port = port
 	var win *mygo.Window
+	page := mygo.PageOptions{TrustedOrigins: []string{"http://127.0.0.1:" + strconv.Itoa(port)}}
+	if bridgeBlobs() {
+		page.PreloadScript = blobBridge
+	}
+	mygo.Bind(&Downloads{})
 
 	mygo.App.OnSecondInstance(func([]string, string) {
 		if win != nil {
@@ -102,15 +110,16 @@ func main() {
 			MinHeight:       600,
 			StateKey:        "main",
 			BackgroundColor: "light-dark(#f5f5f7, #1c1c1e)",
+			Page:            page,
 		})
 		page := win.Page()
 		page.LoadHTML(loadingPage, "")
 		keepOnApp(page, srv)
-		page.OnDownloadDone(func(d *mygo.Download) {
-			if d.Err == nil && os.Getenv("DARKSLIDE_SELFTEST_PORT") == "" {
-				mygo.Shell.ShowItemInFolder(d.Path)
-			}
-		})
+		page.OnDownloadDone(func(d *mygo.Download) { downloadDone(d) })
+		if portErr != nil {
+			showError(page, portErr, "")
+			return
+		}
 		go func() {
 			addr, err := srv.start()
 			if err != nil {
@@ -221,10 +230,7 @@ func (s *server) start() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	port, err := freePort()
-	if err != nil {
-		return "", err
-	}
+	port := s.port
 	logFile, err := os.Create(s.logPath)
 	if err != nil {
 		return "", err
@@ -253,7 +259,7 @@ func (s *server) start() (string, error) {
 	}
 	bindToApp(cmd)
 	s.mu.Lock()
-	s.cmd, s.port = cmd, port
+	s.cmd = cmd
 	s.mu.Unlock()
 
 	go func() {

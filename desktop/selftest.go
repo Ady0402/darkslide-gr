@@ -30,6 +30,15 @@ func init() {
 	dir := os.Getenv("DARKSLIDE_SELFTEST_DOWNLOADS")
 	var mu sync.Mutex
 	var done []*mygo.Download
+	// Every finished download, the webview's and Downloads.Save's, is recorded, not revealed.
+	downloadDone = func(d *mygo.Download) {
+		mu.Lock()
+		done = append(done, d)
+		mu.Unlock()
+	}
+	if dir != "" {
+		downloadDir = func() (string, error) { return dir, nil }
+	}
 	mygo.App.OnWindowCreated(func(w *mygo.Window) {
 		page := w.Page()
 		if page == nil {
@@ -39,11 +48,6 @@ func init() {
 			if dir != "" {
 				e.Path = filepath.Join(dir, e.SuggestedName)
 			}
-		})
-		page.OnDownloadDone(func(d *mygo.Download) {
-			mu.Lock()
-			done = append(done, d)
-			mu.Unlock()
 		})
 		mux := http.NewServeMux()
 		mux.HandleFunc("POST /eval", func(rw http.ResponseWriter, r *http.Request) {
