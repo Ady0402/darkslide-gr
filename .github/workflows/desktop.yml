@@ -84,9 +84,12 @@ jobs:
           $exe = Join-Path $env:LOCALAPPDATA "Programs\Darkslide GR\Darkslide GR.exe"
           if (-not (Test-Path $exe)) { throw "not installed at $exe" }
           python scripts/smoke.py "$exe"
+          python scripts/smoke.py "$exe" --kill
       - name: Start the packaged app (macOS)
         if: runner.os == 'macOS'
-        run: python scripts/smoke.py "dist/${{ matrix.dir }}/${{ matrix.exe }}"
+        run: |
+          python scripts/smoke.py "dist/${{ matrix.dir }}/${{ matrix.exe }}"
+          python scripts/smoke.py "dist/${{ matrix.dir }}/${{ matrix.exe }}" --kill
       - name: Server log
         if: always()
         run: |

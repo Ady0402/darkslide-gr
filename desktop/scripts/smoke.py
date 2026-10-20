@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Start a packaged (not selftest) app, wait for its page, then quit it as 退出 does.
 
-    python3 desktop/scripts/smoke.py <app executable>
+    python3 desktop/scripts/smoke.py <app executable> [--kill]
+
+--kill ends the app the hard way instead (a crash, Force Quit, Task Manager); the
+server must still stop.
 
 Its data goes to a fresh temporary folder. Exit code 0 when the server answered
 within 60 seconds and the app and its server ended after /api/quit.
@@ -44,13 +47,23 @@ def main():
             print("FAIL the server did not answer (app exit code %s)" % proc.poll())
             return 1
         print("PASS the server answered on %d after %.1fs" % (port, time.monotonic() - started))
-        req = urllib.request.Request("http://127.0.0.1:%d/api/quit" % port, data=b"{}", method="POST")
-        urllib.request.urlopen(req, timeout=5).close()
-        try:
-            print("PASS the app quit (exit code %d)" % proc.wait(timeout=20))
-        except subprocess.TimeoutExpired:
-            print("FAIL the app still runs 20s after /api/quit")
-            return 1
+        if "--kill" in sys.argv:
+            # Ended without a chance to clean up, as a crash or Force Quit would.
+            proc.kill()
+            proc.wait()
+            for _ in range(40):
+                if not up(port):
+                    break
+                time.sleep(0.25)
+            print("PASS the app was killed")
+        else:
+            req = urllib.request.Request("http://127.0.0.1:%d/api/quit" % port, data=b"{}", method="POST")
+            urllib.request.urlopen(req, timeout=5).close()
+            try:
+                print("PASS the app quit (exit code %d)" % proc.wait(timeout=20))
+            except subprocess.TimeoutExpired:
+                print("FAIL the app still runs 20s after /api/quit")
+                return 1
         time.sleep(1)
         if up(port):
             print("FAIL the server still answers")

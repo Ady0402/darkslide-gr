@@ -4,3 +4,4 @@ build/
 dist/
 .mygo/
 build-selftest/
+build-killtest/

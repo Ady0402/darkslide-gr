@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"html"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -44,9 +45,35 @@ body{margin:0;height:100vh;display:grid;place-items:center;background:light-dark
 p{opacity:.7}
 </style><p>正在啟動 Darkslide GR…</p>`
 
+// watchParent runs launcher.py (argv[1]) as python3 launcher.py would, and
+// ends the process once stdin reaches its end: the app has gone.
+const watchParent = `import os, runpy, sys, threading
+def watch():
+    sys.stdin.buffer.read()
+    os._exit(0)
+threading.Thread(target=watch, daemon=True).start()
+sys.argv = sys.argv[1:]
+sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
+code = 0
+try:
+    runpy.run_path(sys.argv[0], run_name="__main__")
+except SystemExit as e:
+    if e.code is None or isinstance(e.code, int):
+        code = e.code or 0
+    else:
+        print(e.code, file=sys.stderr)
+        code = 1
+except BaseException:
+    import traceback; traceback.print_exc(); code = 1
+# Out at once: a normal shutdown would wait on the thread still reading stdin.
+sys.stdout.flush(); sys.stderr.flush()
+os._exit(code)
+`
+
 type server struct {
 	mu       sync.Mutex
 	cmd      *exec.Cmd
+	parent   io.WriteCloser
 	port     int
 	quitting bool
 	done     chan struct{}
@@ -206,11 +233,19 @@ func (s *server) start() (string, error) {
 	// -E -s: ignore PYTHON* variables and the user's site-packages, so the
 	// machine's own Python setup cannot change the app. -B: the app bundle
 	// stays unwritten (and its signature valid).
-	cmd := exec.Command(python, "-E", "-s", "-B", "-X", "utf8", filepath.Join(root, "launcher.py"), "--no-browser")
+	cmd := exec.Command(python, "-E", "-s", "-B", "-X", "utf8", "-c", watchParent, filepath.Join(root, "launcher.py"), "--no-browser")
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "PORT="+strconv.Itoa(port), "PYTHONUNBUFFERED=1")
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
+	// The server's stdin is a pipe only this process writes to: it closes
+	// however the app ends, even when killed, and watchParent then ends the server.
+	parent, err := cmd.StdinPipe()
+	if err != nil {
+		logFile.Close()
+		return "", err
+	}
+	s.parent = parent
 	hideConsole(cmd)
 	if err := cmd.Start(); err != nil {
 		logFile.Close()

@@ -115,6 +115,16 @@ def wait_page(proc, timeout=60):
     return None
 
 
+def fresh_page(proc):
+    """Reload the page. Chromium (WebView2) lets a page start one download without a
+    click of the user's; later ones wait for a permission nobody grants here. A person's
+    click resets that, the scripted clicks of this test do not, so each download check
+    starts from its own page load."""
+    run_js("(() => { location.reload(); return 'reloading'; })()")
+    time.sleep(1)
+    return wait_page(proc)
+
+
 def make_fixtures(work):
     """The recipe's files, made byte for byte the same on every platform."""
     n = 17
@@ -310,6 +320,7 @@ def main():
         for label, name, revoke in (("a Chinese name, revoked after 1 s like the page", "自测 测试.cube", True),
                                     ("an ASCII name, revoked after 1 s", "selftest-blob.cube", True),
                                     ("an ASCII name, never revoked", "selftest-kept.cube", False)):
+            fresh_page(proc)
             before = len(downloads())
             run_js("""(() => { const a = document.createElement("a");
               a.href = URL.createObjectURL(new Blob([%s], {type: "text/plain"})); a.download = %s;
@@ -335,6 +346,7 @@ def main():
             luts = [lut.rsplit("=", 1) for lut in args.lut or []]
             if luts and len(luts) != len(RECIPE["luts"]):
                 sys.exit("give %d --lut, one per LUT preset" % len(RECIPE["luts"]))
+            fresh_page(proc)  # 下载固件 is then this page's first download
             generate_and_download(origin, args.firmware, work, report, luts)
 
         # The page's 退出 ends the server, and with it the app.
