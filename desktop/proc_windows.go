@@ -8,6 +8,12 @@ import (
 	"golang.org/x/sys/windows"
 )
 
+// watchesStdin is false: the job object below ends the server with the app, and
+// a stdin pipe blocked in a read stalls every child that inherits it, such as the
+// server's emulation worker, until its 60-second limit (Windows serializes I/O on
+// one pipe).
+const watchesStdin = false
+
 // hideConsole keeps python.exe, a console program, from opening a console window.
 func hideConsole(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{HideWindow: true, CreationFlags: windows.CREATE_NO_WINDOW}

@@ -239,19 +239,25 @@ func (s *server) start() (string, error) {
 	// -E -s: ignore PYTHON* variables and the user's site-packages, so the
 	// machine's own Python setup cannot change the app. -B: the app bundle
 	// stays unwritten (and its signature valid).
-	cmd := exec.Command(python, "-E", "-s", "-B", "-X", "utf8", "-c", watchParent, filepath.Join(root, "launcher.py"), "--no-browser")
+	args := []string{"-E", "-s", "-B", "-X", "utf8"}
+	if watchesStdin {
+		args = append(args, "-c", watchParent)
+	}
+	cmd := exec.Command(python, append(args, filepath.Join(root, "launcher.py"), "--no-browser")...)
 	cmd.Dir = root
 	cmd.Env = append(os.Environ(), "PORT="+strconv.Itoa(port), "PYTHONUNBUFFERED=1")
 	cmd.Stdout = logFile
 	cmd.Stderr = logFile
-	// The server's stdin is a pipe only this process writes to: it closes
-	// however the app ends, even when killed, and watchParent then ends the server.
-	parent, err := cmd.StdinPipe()
-	if err != nil {
-		logFile.Close()
-		return "", err
+	if watchesStdin {
+		// The server's stdin is a pipe only this process writes to: it closes
+		// however the app ends, even when killed, and watchParent then ends the server.
+		parent, err := cmd.StdinPipe()
+		if err != nil {
+			logFile.Close()
+			return "", err
+		}
+		s.parent = parent
 	}
-	s.parent = parent
 	hideConsole(cmd)
 	if err := cmd.Start(); err != nil {
 		logFile.Close()
