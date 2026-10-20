@@ -2,12 +2,23 @@
 // The pixels that go into the camera (the 38×36 icon, the 720×480 shutdown picture),
 // made the same in every browser. A canvas resizes with the browser's own filter, which
 // differs between Chromium and WebKit and even between WebKit on Intel and Apple chips,
-// so the same picture made different firmware. Here the browser only decodes the picture
-// (without colour management); the resize and the PNG are plain arithmetic.
+// so the same picture made different firmware. Browsers decode JPEG differently too
+// (libjpeg-turbo in Chromium, ImageIO on macOS), so JPEGs are decoded by jpegdec.js;
+// other pictures by the browser, without colour management. The resize and the PNG
+// are plain arithmetic.
 (function () {
-  // The picture's pixels at full size, RGBA, as decoded, turned as its EXIF says, like the
-  // <img> the page shows (`img`, whose size it must have: crop rectangles are in its pixels).
+  // The picture's pixels at full size, RGBA, turned as its EXIF says, like the <img> the
+  // page shows (`img`, whose size it must have: crop rectangles are in its pixels).
   async function decode(blob, img) {
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && window.DarkslideJpegDecode) {
+      let px = null;
+      try {
+        const out = window.DarkslideJpegDecode.decode(bytes);
+        px = orient(out, out.orientation);
+      } catch (e) { /* a JPEG it does not read (CMYK, arithmetic coding...): the browser's */ }
+      if (px && (!img || (px.w === img.naturalWidth && px.h === img.naturalHeight))) return px;
+    }
     const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none", imageOrientation: "from-image" });
     if (img && (bmp.width !== img.naturalWidth || bmp.height !== img.naturalHeight)) {
       bmp.close();
@@ -19,6 +30,30 @@
     g.drawImage(bmp, 0, 0);
     bmp.close();
     return { w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data };
+  }
+
+  // px turned upright for EXIF orientation o (1–8), as browsers show the picture.
+  function orient(px, o) {
+    if (!(o >= 2 && o <= 8)) return { w: px.w, h: px.h, data: px.data };
+    const { w, h } = px, swap = o >= 5, W = swap ? h : w, H = swap ? w : h;
+    const out = new Uint8ClampedArray(W * H * 4), d = px.data;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        let sx, sy;
+        switch (o) {
+          case 2: sx = w - 1 - x; sy = y; break;          // mirrored
+          case 3: sx = w - 1 - x; sy = h - 1 - y; break;  // upside down
+          case 4: sx = x; sy = h - 1 - y; break;          // mirrored upside down
+          case 5: sx = y; sy = x; break;                  // transposed
+          case 6: sx = y; sy = h - 1 - x; break;          // turned 90° clockwise
+          case 7: sx = w - 1 - y; sy = h - 1 - x; break;  // transversed
+          default: sx = w - 1 - y; sy = x;                // 8: turned 90° counter-clockwise
+        }
+        const s = (sy * w + sx) * 4, t = (y * W + x) * 4;
+        out[t] = d[s]; out[t + 1] = d[s + 1]; out[t + 2] = d[s + 2]; out[t + 3] = d[s + 3];
+      }
+    }
+    return { w: W, h: H, data: out };
   }
 
   // Source pixels and weights for each output pixel along one axis: the share of each
@@ -99,5 +134,5 @@
     return out;
   }
 
-  window.DarkslidePixels = { decode, resample, png };
+  window.DarkslidePixels = { decode, orient, resample, png };
 })();
