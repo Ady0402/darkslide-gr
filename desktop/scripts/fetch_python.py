@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -46,21 +47,27 @@ ASSETS = {
     ),
 }
 
-# 相對於解壓後 python/ 的可移除項目（不存在則略過）。支援 glob。
-PRUNE = [
-    "lib/python3.*/test",
-    "lib/python3.*/idlelib",
-    "lib/python3.*/tkinter",
-    "lib/python3.*/turtledemo",
-    "lib/python3.*/ensurepip",
-    "lib/python3.*/lib2to3",
-    "lib/tcl*", "lib/tk*", "lib/itcl*", "lib/thread*",
-    "Lib/test", "Lib/idlelib", "Lib/tkinter", "Lib/turtledemo",
-    "Lib/ensurepip", "Lib/lib2to3",
-    "tcl",
-    "include",
-    "share",
-]
+# 相對於解壓後 python/ 的可移除項目（不存在則略過），依平台分開。支援 glob，比對區分大小寫：
+# 在不分大小寫的檔案系統上，Unix 的 lib/thread* 會誤配 Windows 的 Lib/threading.py。
+PRUNE = {
+    "darwin": [
+        "lib/python3.*/test",
+        "lib/python3.*/idlelib",
+        "lib/python3.*/tkinter",
+        "lib/python3.*/turtledemo",
+        "lib/python3.*/ensurepip",
+        "lib/python3.*/lib2to3",
+        "lib/tcl*", "lib/tk*", "lib/itcl*", "lib/thread*", "lib/libtcl*",
+        "include",
+        "share",
+    ],
+    "windows": [
+        "Lib/test", "Lib/idlelib", "Lib/tkinter", "Lib/turtledemo",
+        "Lib/ensurepip", "Lib/lib2to3",
+        "tcl",
+        "include",
+    ],
+}
 
 
 def die(msg: str):
@@ -177,9 +184,11 @@ def safe_extract(archive: Path, dest: Path) -> None:
             tf.extractall(dest, members=members)
 
 
-def prune(root: Path) -> None:
-    for pat in PRUNE:
+def prune(root: Path, plat: str) -> None:
+    for pat in PRUNE[plat.split("-")[0]]:
         for p in root.glob(pat):
+            if not fnmatch.fnmatchcase(p.relative_to(root).as_posix(), pat):
+                continue
             if p.is_dir() and not p.is_symlink():
                 shutil.rmtree(p, ignore_errors=True)
             elif p.exists() or p.is_symlink():
@@ -221,7 +230,11 @@ def install(plat: str, cache: Path) -> None:
         if not new.is_dir():
             die("[%s] 壓縮檔缺少頂層 python/ 目錄" % plat)
         before = tree_size(new)
-        prune(new)
+        prune(new, plat)
+        lib = new / "Lib" if plat.startswith("windows") else next(new.glob("lib/python3.*"))
+        for module in ("threading.py", "socket.py", "http/server.py", "json/__init__.py", "sqlite3/__init__.py"):
+            if not (lib / module).is_file():
+                die("[%s] 精簡後缺少必要模組 %s" % (plat, module))
         after = tree_size(new)
         print("[%s] 精簡前 %s -> 精簡後 %s" % (plat, fmt(before), fmt(after)))
         (new / MARKER_NAME).write_text(
