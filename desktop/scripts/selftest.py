@@ -191,6 +191,12 @@ def generate_and_download(origin, firmware, work, report, luts=None, settle=0):
         "bitmap default": await hash(await createImageBitmap(blob)),
         "bitmap no colour management": await hash(await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none" })),
         "img element": await hash(img),
+        // What the page itself resizes from, when it has web/pixels.js.
+        ...(window.DarkslidePixels ? { "page decoder": await (async () => {
+          const px = await window.DarkslidePixels.decode(blob, img);
+          const d = new Uint8Array(await crypto.subtle.digest("SHA-256", px.data));
+          return [...d].map((b) => b.toString(16).padStart(2, "0")).join("");
+        })() } : {}),
       });
     })()""" % json.dumps(file_url(icon)))
     out = run_js("""(async () => { %s
