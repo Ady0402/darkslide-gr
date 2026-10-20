@@ -1,7 +1,11 @@
 # The desktop shell (desktop/) on each platform it ships for: a selftest build is
 # driven through its window, and the packaged app is installed and started.
-# No RICOH firmware is ever used here; the generate-and-download check runs only
-# locally, with --firmware. This only reports ✅/❌; it never publishes or writes.
+#
+# The same project is then generated on every platform and the results compared:
+# RICOH's GR III 2.10 zip and FUJIFILM's LUT pack are downloaded from their own
+# sites on the runner (desktop/ci/fetch_inputs.py; downloading RICOH's file accepts
+# its licence) and never published. Only the comparison reports are uploaded.
+# This only reports ✅/❌; it never publishes firmware or writes anywhere else.
 name: desktop
 
 on:
@@ -31,7 +35,7 @@ jobs:
             dir: darwin-amd64
             exe: Darkslide GR.app/Contents/MacOS/Darkslide GR
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 90
     defaults:
       run:
         shell: bash
@@ -58,6 +62,17 @@ jobs:
         run: go tool mygo build -platform ${{ matrix.platform }} -skip-dmg -o build-selftest
       - name: Drive the window
         run: python scripts/selftest.py "build-selftest/${{ matrix.dir }}/${{ matrix.exe }}"
+      - name: Firmware and LUTs (from RICOH and FUJIFILM, kept on the runner)
+        run: python ci/fetch_inputs.py "$RUNNER_TEMP/inputs"
+      - name: Generate the same project (4 Fuji LUTs renamed, sliders, icon, name, shutdown picture)
+        run: python scripts/selftest.py "build-selftest/${{ matrix.dir }}/${{ matrix.exe }}" "@$RUNNER_TEMP/inputs/selftest-args.txt" --report "report-${{ matrix.dir }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: report-${{ matrix.dir }}
+          path: desktop/report-${{ matrix.dir }}.json
+          if-no-files-found: ignore
+          retention-days: 14
       - name: Package
         run: go tool mygo build -platform ${{ matrix.platform }}
       - name: Install and start the installer's app (Windows)
@@ -79,12 +94,21 @@ jobs:
             [ -f "$f" ] && { echo "== $f"; cat "$f"; }
           done
           true
-      - uses: actions/upload-artifact@v4
-        if: always()
+
+  compare:
+    needs: selftest
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
         with:
-          name: darkslide-desktop-${{ matrix.dir }}
-          path: |
-            desktop/dist/*/*.dmg
-            desktop/dist/*/*Setup*.exe
-          if-no-files-found: ignore
-          retention-days: 7
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: report-*
+          merge-multiple: true
+          path: reports
+      - name: Compare the platforms
+        run: |
+          ls reports
+          python3 desktop/scripts/compare_reports.py reports/*.json | tee -a "$GITHUB_STEP_SUMMARY"

@@ -116,6 +116,9 @@ func keepOnApp(page *mygo.Page, srv *server) {
 			return
 		}
 		e.PreventDefault()
+		if os.Getenv("DARKSLIDE_SELFTEST_PORT") != "" {
+			return // selftest builds keep the browser closed
+		}
 		go mygo.Shell.OpenExternal(e.URL)
 	})
 }

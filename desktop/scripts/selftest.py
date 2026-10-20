@@ -1,14 +1,18 @@
 #!/usr/bin/env python3
 """Drive a selftest build of the desktop app through its window, as a user would.
 
-    python3 desktop/scripts/selftest.py <app executable> [--firmware fwdc239b.bin]
+    python3 desktop/scripts/selftest.py <app executable> [--firmware fwdc239b.bin] [--report out.json]
 
 The app must be built with `-tags selftest` (see desktop/README.md). Its data goes to
 a fresh temporary folder, never the user's own. Without --firmware it checks what
 needs no RICOH file: the page loads, a file reaches the server through the page's
 import code, a server file and a blob download through the webview's download path,
-links leave for the browser, and the page's 退出 ends the app and its server. With
---firmware it also generates a firmware and downloads it through 下载固件.
+links leave for the browser, and the page's 退出 ends the app and its server.
+
+With --firmware it also makes the same project on every platform (RECIPE: an
+imported .cube, sliders, a picture icon, a new name and a shutdown picture),
+generates the firmware and downloads it through 下载固件. --report writes what was
+made, for compare_reports.py to set the platforms side by side.
 
 Exit code 0 when every check passed.
 """
@@ -16,17 +20,44 @@ import argparse
 import hashlib
 import json
 import os
+import platform
+import struct
 import subprocess
 import sys
 import tempfile
 import time
 import urllib.parse
 import urllib.request
+import zlib
 from pathlib import Path
 
 CONTROL_PORT = 9911
 CONTROL = "http://127.0.0.1:%d" % CONTROL_PORT
+REPO = Path(__file__).resolve().parents[2]
 results = []
+
+# The same project on every platform: what a user would set by hand.
+RECIPE = {
+    # Four imported .cube looks, one on each LUT preset, each renamed.
+    "luts": [
+        {"slot": 8, "look": "warm", "name": "Warm A"},
+        {"slot": 9, "look": "cool", "name": "Cool B"},
+        {"slot": 10, "look": "fade", "name": "Fade C"},
+        {"slot": 11, "look": "punch", "name": "Punch D"},
+    ],
+    "grade_slot": 11,                                  # sliders on top of that preset's LUT
+    "grade": {"temp": 10, "con": 15, "sat": -10},
+    "icon_slot": 2,                                    # a picture as the icon, and a new name
+    "name": "Selftest",
+}
+
+# Each look maps r, g, b in 0..1 to the output colour.
+LOOKS = {
+    "warm": lambda r, g, b: (min(1, 0.04 + 0.96 * r ** 0.92), 0.03 + 0.95 * g, 0.02 + 0.9 * b ** 1.08),
+    "cool": lambda r, g, b: (0.02 + 0.9 * r ** 1.1, 0.02 + 0.96 * g, min(1, 0.05 + 0.95 * b ** 0.9)),
+    "fade": lambda r, g, b: tuple(0.12 + 0.8 * (0.85 * v + 0.15 * (r + g + b) / 3) for v in (r, g, b)),
+    "punch": lambda r, g, b: tuple(min(1, max(0, 0.5 + (v - 0.5) * 1.35)) for v in (r, g, b)),
+}
 
 
 def check(name, ok, detail=""):
@@ -54,8 +85,7 @@ def downloads():
 def wait_download(url_part, before, timeout=60):
     end = time.monotonic() + timeout
     while time.monotonic() < end:
-        rows = downloads()[before:]
-        for row in rows:
+        for row in downloads()[before:]:
             if url_part in row["URL"]:
                 return row
         time.sleep(0.25)
@@ -85,52 +115,157 @@ def wait_page(proc, timeout=60):
     return None
 
 
-def generate_and_download(origin, firmware, dl_dir):
-    """The whole 生成 flow with a real official file, as tested on the author's Mac."""
-    out = run_js("""(async () => {
+def make_fixtures(work):
+    """The recipe's files, made byte for byte the same on every platform."""
+    n = 17
+    cubes = {}
+    for look, fn in LOOKS.items():
+        rows = []
+        for b in range(n):
+            for g in range(n):
+                for r in range(n):
+                    rows.append("%.6f %.6f %.6f" % fn(r / (n - 1), g / (n - 1), b / (n - 1)))
+        cube = work / ("selftest-%s.cube" % look)
+        cube.write_bytes(('TITLE "Selftest %s"\nLUT_3D_SIZE %d\n' % (look.title(), n) + "\n".join(rows) + "\n").encode("ascii"))
+        cubes[look] = cube
+
+    w = h = 320
+    raw = b"".join(b"\0" + bytes(v for x in range(w) for v in ((x * 255) // w, (y * 255) // h, 160, 255)) for y in range(h))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+    icon = work / "selftest-icon.png"
+    icon.write_bytes(b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 6, 0, 0, 0))
+                     + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+    return cubes, icon, REPO / "tests" / "fixtures" / "shutdown_gradient.jpg"
+
+
+HELPERS = """
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const until = async (fn, ms = 60000) => { for (let t = 0; t < ms; t += 200) { if (fn()) return true; await wait(200); } return false; };
+  // A file chosen in an <input type=file>, as the picker leaves it; the page's own change handler runs.
+  const choose = async (id, url, name, type) => {
+    const blob = await (await fetch(url)).blob();
+    const dt = new DataTransfer(); dt.items.add(new File([blob], name, { type }));
+    const input = document.getElementById(id); input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  };
+  const pickSlot = async (no) => { document.querySelectorAll(".slot")[listedSlots().findIndex((s) => s.no === no)].click(); await wait(800); };
+  const toasts = () => [...document.querySelectorAll(".toast")].map((t) => t.innerText).join(" / ");
+  const rename = async (text) => {
+    const name = document.getElementById("nameInput");
+    name.value = text; name.dispatchEvent(new Event("input", { bubbles: true })); name.dispatchEvent(new Event("change", { bubbles: true }));
+    await wait(300);
+  };
+"""
+
+
+def generate_and_download(origin, firmware, work, report, luts=None):
+    """RECIPE through the page, then 生成 and 下载固件. `luts`, four (path, name) pairs, replace
+    the made-up looks, e.g. the user's own Fuji .cube files."""
+    cubes, icon, shutdown = make_fixtures(work)
+    if luts:
+        RECIPE["luts"] = [dict(slot=lut["slot"], look=Path(path).stem, name=name) for lut, (path, name) in zip(RECIPE["luts"], luts)]
+        cubes = {Path(path).stem: Path(path) for path, _ in luts}
+    report["inputs"] = dict({"firmware": sha256(firmware), "icon": sha256(icon), "shutdown": sha256(shutdown), "recipe": RECIPE},
+                            **{"cube " + look: sha256(path) for look, path in cubes.items()})
+    out = run_js("""(async () => { %s
       const blob = await (await fetch(%s)).blob();
       await importFile(new File([blob], %s));
       document.querySelector("#projectPick .btn.primary").click();
-      await new Promise((r) => setTimeout(r, 2500));
-      const slot = state.template.slots.find((s) => s.rename === "test" && s.name_max);
-      return JSON.stringify({imported: document.getElementById("importResult").innerText, slot: slot && slot.no});
-    })()""" % (json.dumps(file_url(firmware)), json.dumps(Path(firmware).name)))
+      await until(() => state.project && document.getElementById("btnGenerate").offsetParent);
+      return JSON.stringify({imported: document.getElementById("importResult").innerText});
+    })()""" % (HELPERS, json.dumps(file_url(firmware)), json.dumps(Path(firmware).name)))
     if not check("import the official firmware", out["imported"].startswith("✓"), out["imported"]):
         return
+
+    # The fitting component, as the page installs it once the user agrees.
+    out = run_js("""(async () => {
+      let st = await (await fetch("/api/fitting-setup")).json();
+      if (st.state === "missing") st = await (await fetch("/api/fitting-setup", { method: "POST" })).json();
+      return JSON.stringify(st);
+    })()""", timeout=600)
+    report["fitting"] = out
+    if not check("install the fitting component", out.get("state") not in ("missing", "failed", "unsupported"),
+                 "%s %s" % (out.get("state"), out.get("note", ""))):
+        return
+
+    r = RECIPE
+    out = run_js("""(async () => { %(helpers)s
+      const errors = [];
+      for (const lut of %(luts)s) {   // 导入 .cube on each LUT preset, then a name of our own
+        await pickSlot(lut.slot);
+        const before = (state.changes[lut.slot] || {}).film;
+        await choose("filmLutInput", lut.url, lut.file, "text/plain");
+        if (!await until(() => { const f = (state.changes[lut.slot] || {}).film; return f && f !== before; })) errors.push("lut " + lut.look + " not applied: " + toasts());
+        await rename(lut.name);
+        if ((state.changes[lut.slot] || {}).name !== lut.name) errors.push("preset " + lut.slot + " not renamed");
+      }
+      await pickSlot(%(grade)d);
+      setEdit(%(grade)d, "grade", %(values)s);
+      await pickSlot(%(icon)d);
+      await choose("imageInput", %(png)s, "selftest-icon.png", "image/png");
+      await until(() => document.getElementById("cropDialog").open);
+      await wait(500);
+      document.getElementById("cropApply").click();
+      if (!await until(() => ((state.changes[%(icon)d] || {}).icon || {}).asset)) errors.push("icon not applied: " + toasts());
+      await rename(%(name)s);
+      document.getElementById("featShutdown").click(); await wait(500);
+      await choose("sdInput", %(jpg)s, "shutdown.jpg", "image/jpeg");
+      if (!await until(() => document.getElementById("sdDialog").open)) errors.push("shutdown dialog did not open: " + toasts());
+      await wait(500);
+      if (!await until(() => !document.getElementById("sdApply").disabled, 120000)) errors.push("shutdown not fitted: " + document.getElementById("sdStat").textContent);
+      document.getElementById("sdApply").click();
+      if (!await until(() => state.changes.shutdown && !document.getElementById("sdDialog").open)) errors.push("shutdown not applied: " + toasts());
+      document.getElementById("featIC").click(); await wait(1500);
+      return JSON.stringify({ errors, changes: state.changes, shutdown: state.shutdown || null });
+    })()""" % dict(helpers=HELPERS, grade=r["grade_slot"], icon=r["icon_slot"], values=json.dumps(r["grade"]),
+                   luts=json.dumps([dict(lut, url=file_url(cubes[lut["look"]]), file=cubes[lut["look"]].name) for lut in r["luts"]]),
+                   png=json.dumps(file_url(icon)), jpg=json.dumps(file_url(shutdown)), name=json.dumps(r["name"])), timeout=600)
+    report["changes"] = out["changes"]
+    if not check("set up the recipe (4 LUTs renamed, sliders, icon, name, shutdown picture)", not out["errors"], "; ".join(out["errors"])):
+        return
+
     run_js("""(async () => {
-      const name = document.getElementById("nameInput");
-      name.value = "Selftest"; name.dispatchEvent(new Event("input", {bubbles: true})); name.dispatchEvent(new Event("change", {bubbles: true}));
-      await new Promise((r) => setTimeout(r, 1500));
       document.getElementById("btnGenerate").click();
-      await new Promise((r) => setTimeout(r, 1000));
+      await new Promise((r) => setTimeout(r, 1500));
       const d = document.getElementById("preflightDialog");
       if (d.open) [...d.querySelectorAll("button")].find((b) => /继续|繼續|Continue/i.test(b.innerText)).click();
       return "started";
     })()""")
     out = run_js("""(async () => {
-      for (let i = 0; i < 600; i++) {
+      for (let i = 0; i < 1800; i++) {
         if (!document.getElementById("doneDownloads").hidden) break;
-        if ([...document.querySelectorAll("dialog[open]")].length) break;
+        if (document.getElementById("doneMore").open) break;
+        const open = [...document.querySelectorAll("dialog[open]")];
+        if (open.length) return JSON.stringify({ok: false, title: "dialog", text: open.map((x) => x.id + ": " + x.innerText.slice(0, 300)).join(" | ")});
         await new Promise((r) => setTimeout(r, 500));
       }
       const a = document.getElementById("dlFirmware");
       return JSON.stringify({ok: !document.getElementById("doneDownloads").hidden, title: document.getElementById("doneTitle").textContent,
-        text: document.getElementById("doneText").textContent, href: a.getAttribute("href")});
-    })()""", timeout=360)
-    if not check("generate a firmware", out["ok"], out["title"] + " " + out["text"]):
+        text: document.getElementById("doneText").textContent + " " + document.getElementById("doneChecks").innerText.slice(0, 1500),
+        href: a.getAttribute("href")});
+    })()""", timeout=1000)
+    if not check("generate a firmware", out["ok"], out["title"] + " " + out["text"][:200]):
+        report["generate_error"] = out
         return
     manifest = json.load(urllib.request.urlopen(origin + out["href"].replace("/firmware", "/manifest")))
+    report["manifest"] = manifest
+    report["firmware_sha256"] = manifest["output_sha256"]
     before = len(downloads())
-    run_js('document.getElementById("dlFirmware").click(); "clicked"')
+    run_js('(() => { document.getElementById("dlFirmware").click(); return "clicked"; })()')
     row = wait_download(out["href"], before)
     check("download the firmware through 下载固件", row and not row["Err"] and sha256(row["Path"]) == manifest["output_sha256"],
           row and (row["Err"] or row["Path"]))
 
 
 def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0], fromfile_prefix_chars="@")
     ap.add_argument("app", help="the app's executable (Darkslide GR.exe, or Contents/MacOS/Darkslide GR)")
-    ap.add_argument("--firmware", help="an official fwdc239b.bin for the full generate-and-download check")
+    ap.add_argument("--firmware", help="an official fwdc239b.bin for the generate-and-download checks")
+    ap.add_argument("--report", help="write what was made, as JSON, for compare_reports.py")
+    ap.add_argument("--lut", action="append", metavar="PATH=NAME",
+                    help="a .cube for the next LUT preset and its new name; four of them replace the made-up looks")
     args = ap.parse_args()
 
     work = Path(tempfile.mkdtemp(prefix="darkslide-selftest-"))
@@ -139,6 +274,7 @@ def main():
     dl_dir.mkdir()
     env = dict(os.environ, DARKSLIDE_DATA=str(data), DARKSLIDE_SELFTEST_PORT=str(CONTROL_PORT),
                DARKSLIDE_SELFTEST_DOWNLOADS=str(dl_dir))
+    report = {"platform": sys.platform, "machine": platform.machine(), "app": args.app}
     started = time.monotonic()
     proc = subprocess.Popen([args.app], env=env)
     try:
@@ -159,10 +295,8 @@ def main():
         check("a file goes through the page's import to the server", out.startswith("✕"), out)
 
         # A server file on a link with download, as 下载固件 is.
-        catalog = json.load(urllib.request.urlopen(origin + "/api/film-catalog"))
-        films = catalog.get("films") if isinstance(catalog, dict) else catalog
-        fid = films[0]["id"]
-        path = "/api/film-preview/%s.cube" % urllib.parse.quote(fid)
+        films = json.load(urllib.request.urlopen(origin + "/api/film-catalog"))["films"]
+        path = "/api/film-preview/%s.cube" % urllib.parse.quote(films[0]["id"])
         expected = hashlib.sha256(urllib.request.urlopen(origin + path).read()).hexdigest()
         before = len(downloads())
         run_js('(() => { const a = document.createElement("a"); a.href = %s; a.download = "selftest-film.cube"; document.body.append(a); a.click(); a.remove(); return "clicked"; })()' % json.dumps(path))
@@ -170,32 +304,42 @@ def main():
         check("download a server file from a link", row and not row["Err"] and sha256(row["Path"]) == expected,
               row and (row["Err"] or row["Path"]))
 
-        # A blob with a Chinese name, as 导出 .cube and the recipe card make.
+        # A blob with a Chinese name, as 导出 .cube and the recipe card make (revoked after 1 s, as
+        # they do); then the same with an ASCII name and without revoking, to tell causes apart.
         text = "TITLE \"自测\"\nLUT_3D_SIZE 2\n"
-        before = len(downloads())
-        run_js("""(() => { const a = document.createElement("a");
-          a.href = URL.createObjectURL(new Blob([%s], {type: "text/plain"})); a.download = "自测 测试.cube";
-          a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); return "clicked"; })()""" % json.dumps(text))
-        row = wait_download("blob:", before)
-        ok = row and not row["Err"] and Path(row["Path"]).name == "自测 测试.cube" and Path(row["Path"]).read_text(encoding="utf-8") == text
-        check("download a blob with a Chinese name", ok, row and (row["Err"] or row["Path"]))
+        for label, name, revoke in (("a Chinese name, revoked after 1 s like the page", "自测 测试.cube", True),
+                                    ("an ASCII name, revoked after 1 s", "selftest-blob.cube", True),
+                                    ("an ASCII name, never revoked", "selftest-kept.cube", False)):
+            before = len(downloads())
+            run_js("""(() => { const a = document.createElement("a");
+              a.href = URL.createObjectURL(new Blob([%s], {type: "text/plain"})); a.download = %s;
+              a.click(); if (%s) setTimeout(() => URL.revokeObjectURL(a.href), 1000); return "clicked"; })()"""
+                   % (json.dumps(text), json.dumps(name), "true" if revoke else "false"))
+            row = wait_download("blob:", before, timeout=30)
+            ok = row and not row["Err"] and Path(row["Path"]).name == name and Path(row["Path"]).read_text(encoding="utf-8") == text
+            detail = row and (row["Err"] or row["Path"])
+            if not ok:
+                detail = "events %s; folder %s" % (json.dumps(downloads()[before:], ensure_ascii=False), sorted(os.listdir(dl_dir)))
+            check("download a blob with " + label, ok, detail)
 
-        # localStorage keeps what the page remembers.
         out = run_js('(() => { localStorage.setItem("darkslide.selftest", "記得"); return localStorage.getItem("darkslide.selftest"); })()')
         check("localStorage works", out == "記得", out)
 
-        # A link to another site leaves for the browser; the window stays on the app.
+        # A link to another site is kept out of the window (selftest builds don't open the browser).
         run_js('(() => { const a = document.createElement("a"); a.href = "https://example.com/"; document.body.append(a); a.click(); a.remove(); return "clicked"; })()')
         time.sleep(1.5)
         out = run_js("location.href")
         check("external links leave the window alone", out.rstrip("/") == origin, out)
 
         if args.firmware:
-            generate_and_download(origin, args.firmware, dl_dir)
+            luts = [lut.rsplit("=", 1) for lut in args.lut or []]
+            if luts and len(luts) != len(RECIPE["luts"]):
+                sys.exit("give %d --lut, one per LUT preset" % len(RECIPE["luts"]))
+            generate_and_download(origin, args.firmware, work, report, luts)
 
         # The page's 退出 ends the server, and with it the app.
         server = urllib.parse.urlparse(origin).port
-        run_js('document.getElementById("btnQuit").click(); "clicked"')
+        run_js('(() => { document.getElementById("btnQuit").click(); return "clicked"; })()')
         try:
             code = proc.wait(timeout=20)
             check("退出 quits the app", True, "exit code %d" % code)
@@ -210,6 +354,9 @@ def main():
     finally:
         if proc.poll() is None:
             proc.kill()
+        report["results"] = results
+        if args.report:
+            Path(args.report).write_text(json.dumps(report, ensure_ascii=False, indent=1, sort_keys=True), encoding="utf-8")
     failed = [name for name, ok in results if not ok]
     print("\n%d passed, %d failed" % (len(results) - len(failed), len(failed)))
     return 1 if failed else 0
