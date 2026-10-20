@@ -173,7 +173,7 @@ HELPERS = """
 """
 
 
-def generate_and_download(origin, firmware, work, report, luts=None):
+def generate_and_download(origin, firmware, work, report, luts=None, settle=0):
     """RECIPE through the page, then 生成 and 下载固件. `luts`, four (path, name) pairs, replace
     the made-up looks, e.g. the user's own Fuji .cube files."""
     cubes, icon, shutdown = make_fixtures(work)
@@ -242,6 +242,11 @@ def generate_and_download(origin, firmware, work, report, luts=None):
     report["changes"] = out["changes"]
     if not check("set up the recipe (4 LUTs renamed, sliders, icon, name, shutdown picture)", not out["errors"], "; ".join(out["errors"])):
         return
+    if settle:
+        # What the server started on its own after the imports finishes before 生成 asks for fits.
+        print("    waiting %d s before 生成" % settle, flush=True)
+        time.sleep(settle)
+    report["settle_seconds"] = settle
 
     run_js("""(async () => {
       document.getElementById("btnGenerate").click();
@@ -290,6 +295,8 @@ def main():
     ap.add_argument("--report", help="write what was made, as JSON, for compare_reports.py")
     ap.add_argument("--lut", action="append", metavar="PATH=NAME",
                     help="a .cube for the next LUT preset and its new name; four of them replace the made-up looks")
+    ap.add_argument("--settle", type=int, default=0, metavar="SECONDS",
+                    help="wait this long between setting up the recipe and 生成")
     args = ap.parse_args()
 
     work = Path(tempfile.mkdtemp(prefix="darkslide-selftest-"))
@@ -361,7 +368,7 @@ def main():
             if luts and len(luts) != len(RECIPE["luts"]):
                 sys.exit("give %d --lut, one per LUT preset" % len(RECIPE["luts"]))
             fresh_page(proc)  # 下载固件 is then this page's first download
-            generate_and_download(origin, args.firmware, work, report, luts)
+            generate_and_download(origin, args.firmware, work, report, luts, args.settle)
 
         # The page's 退出 ends the server, and with it the app.
         server = urllib.parse.urlparse(origin).port

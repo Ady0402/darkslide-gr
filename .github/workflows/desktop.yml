@@ -140,6 +140,61 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # The selftest's fits time out on x86 although one emulation takes 5–20 s there.
+  # Same recipe, but 生成 only after 5 quiet minutes: passing here points at the work
+  # the server starts after the imports, failing at the fits themselves.
+  fit-probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, platform: windows/amd64, dir: windows-amd64, exe: Darkslide GR.exe }
+          - { os: macos-15-intel, platform: darwin/amd64, dir: darwin-amd64, exe: Darkslide GR.app/Contents/MacOS/Darkslide GR }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: desktop
+    env:
+      PYTHONUTF8: "1"
+      LC_ALL: en_US.UTF-8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: desktop/go.sum
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Bundled Python
+        run: python scripts/fetch_python.py --platform ${{ matrix.dir }}
+      - name: Selftest build
+        env:
+          GOFLAGS: -tags=selftest
+        run: go tool mygo build -platform ${{ matrix.platform }} -skip-dmg -o build-selftest
+      - name: Firmware and LUTs (from RICOH and FUJIFILM, kept on the runner)
+        run: python ci/fetch_inputs.py "$RUNNER_TEMP/inputs"
+      - name: Generate after 5 quiet minutes
+        run: python scripts/selftest.py "build-selftest/${{ matrix.dir }}/${{ matrix.exe }}" "@$RUNNER_TEMP/inputs/selftest-args.txt" --settle 300 --report "probe-${{ matrix.dir }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: probe-${{ matrix.dir }}
+          path: desktop/probe-${{ matrix.dir }}.json
+          if-no-files-found: ignore
+          retention-days: 14
+      - name: Server log
+        if: always()
+        run: |
+          for f in "$APPDATA/Darkslide GR/logs/server.log" "$HOME/Library/Logs/Darkslide GR/server.log"; do
+            [ -f "$f" ] && { echo "== $f"; cat "$f"; }
+          done
+          true
+
   compare:
     needs: selftest
     if: always()
