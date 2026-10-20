@@ -49,6 +49,9 @@ RECIPE = {
     "grade": {"temp": 10, "con": 15, "sat": -10},
     "icon_slot": 2,                                    # a picture as the icon, and a new name
     "name": "Selftest",
+    # Picked by hand: left alone, the page guesses it from the system language, which
+    # differs between machines and changes the menu text written into the firmware.
+    "menu_language": "zh-TW",
 }
 
 # Each look maps r, g, b in 0..1 to the output colour.
@@ -203,6 +206,9 @@ def generate_and_download(origin, firmware, work, report, luts=None):
     r = RECIPE
     out = run_js("""(async () => { %(helpers)s
       const errors = [];
+      const lang = document.getElementById("menuLangSelect");
+      lang.value = %(lang)s; lang.dispatchEvent(new Event("change", { bubbles: true }));
+      if (!await until(() => state.project.menu_language === %(lang)s)) errors.push("menu language not set");
       for (const lut of %(luts)s) {   // 导入 .cube on each LUT preset, then a name of our own
         await pickSlot(lut.slot);
         const before = (state.changes[lut.slot] || {}).film;
@@ -231,7 +237,8 @@ def generate_and_download(origin, firmware, work, report, luts=None):
       return JSON.stringify({ errors, changes: state.changes, shutdown: state.shutdown || null });
     })()""" % dict(helpers=HELPERS, grade=r["grade_slot"], icon=r["icon_slot"], values=json.dumps(r["grade"]),
                    luts=json.dumps([dict(lut, url=file_url(cubes[lut["look"]]), file=cubes[lut["look"]].name) for lut in r["luts"]]),
-                   png=json.dumps(file_url(icon)), jpg=json.dumps(file_url(shutdown)), name=json.dumps(r["name"])), timeout=600)
+                   png=json.dumps(file_url(icon)), jpg=json.dumps(file_url(shutdown)), name=json.dumps(r["name"]),
+                   lang=json.dumps(r["menu_language"])), timeout=600)
     report["changes"] = out["changes"]
     if not check("set up the recipe (4 LUTs renamed, sliders, icon, name, shutdown picture)", not out["errors"], "; ".join(out["errors"])):
         return

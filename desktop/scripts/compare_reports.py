@@ -39,6 +39,7 @@ def rows(report):
         ("page: shutdown JPEG", shutdown.get("asset")),
         ("page: shutdown JPEG quality", shutdown.get("quality")),
         ("page: shutdown source", shutdown.get("source")),
+        ("generator: menu language", manifest.get("menu_language")),
         ("generator: changes written", json.dumps(manifest.get("summary"), sort_keys=True, ensure_ascii=False)),
         ("generator: payload after", manifest.get("payload_sha256_after")),
         ("generator: offline checks", "%d/%d passed" % (sum(1 for c in manifest.get("checks", []) if c.get("ok")), len(manifest.get("checks", [])))
