@@ -4,13 +4,15 @@
 # The same project is then generated on every platform and the results compared:
 # RICOH's GR III 2.10 zip and FUJIFILM's LUT pack are downloaded from their own
 # sites on the runner (desktop/ci/fetch_inputs.py; downloading RICOH's file accepts
-# its licence) and never published. Only the comparison reports are uploaded.
-# This only reports ✅/❌; it never publishes firmware or writes anywhere else.
+# its licence) and never published. Uploaded: the comparison reports, and the
+# installers (.dmg, Setup .exe) as run artifacts, which hold no firmware.
+# Nothing is published; scripts/update_from_upstream.py brings in a new upstream
+# release, and pushing it runs all of this again.
 name: desktop
 
 on:
   push:
-    paths: ["desktop/**", ".github/workflows/desktop.yml"]
+    paths: ["desktop/**", "web/**", "darkslide/**", "launcher.py", ".github/workflows/desktop.yml"]
   workflow_dispatch:
 
 permissions:
@@ -54,6 +56,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - uses: actions/setup-node@v4  # the CLI evaluates mygo.config.ts with Node 22.6+
+        with:
+          node-version: "22"
       - name: Bundled Python
         run: python scripts/fetch_python.py --platform ${{ matrix.dir }}
       - name: Selftest build
@@ -74,7 +79,21 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: Package
+        env:
+          DARKSLIDE_BUILD: ${{ github.run_number }}  # the build number; the version is darkslide's own
         run: go tool mygo build -platform ${{ matrix.platform }}
+      - name: Everything the program reads is in the app
+        run: |
+          if [ "$RUNNER_OS" = Windows ]; then res="dist/${{ matrix.dir }}"; else res="dist/${{ matrix.dir }}/Darkslide GR.app/Contents/Resources"; fi
+          python scripts/check_resources.py "$res"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.dir }}
+          path: |
+            desktop/dist/*/*.dmg
+            desktop/dist/*/*Setup*.exe
+          if-no-files-found: error
+          retention-days: 30
       - name: Install and start the installer's app (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
@@ -124,6 +143,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - uses: actions/setup-node@v4  # the CLI evaluates mygo.config.ts with Node 22.6+
+        with:
+          node-version: "22"
       - name: Bundled Python
         run: python scripts/fetch_python.py --platform ${{ matrix.dir }}
       - name: Firmware (from RICOH, kept on the runner)
@@ -170,6 +192,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - uses: actions/setup-node@v4  # the CLI evaluates mygo.config.ts with Node 22.6+
+        with:
+          node-version: "22"
       - name: Bundled Python
         run: python scripts/fetch_python.py --platform ${{ matrix.dir }}
       - name: Selftest build

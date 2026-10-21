@@ -1,7 +1,8 @@
 .cache/
-resources/*/python/
+.mygo/
+build-cfgtest/
+build-killtest/
+build-selftest/
 build/
 dist/
-.mygo/
-build-selftest/
-build-killtest/
+resources/*/python/

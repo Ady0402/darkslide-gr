@@ -17,7 +17,9 @@
 
 ## 构建
 
-需要 Go 1.27 或更新版本。在 macOS 上打包 Windows 安装程序还需要 NSIS（`brew install makensis`）。
+需要 Go 1.27 或更新版本，以及 Node.js 22.6 或更新版本（MyGo 用它读取 `mygo.config.ts`）。在 macOS 上打包 Windows 安装程序还需要 NSIS（`brew install makensis`）。
+
+版本号取自 `darkslide/__init__.py` 的 `VERSION`，不用手动改。macOS 的 build 号（`CFBundleVersion`）取环境变量 `DARKSLIDE_BUILD`（CI 用运行编号），没有设置时用 commit 数。
 
 ```sh
 cd desktop
@@ -28,6 +30,22 @@ LC_ALL=en_US.UTF-8 go tool mygo build -platform darwin/arm64,darwin/amd64,window
 产物在 `dist/<平台>/`：macOS 是 `.app` 和 `.dmg`，Windows 是 `Darkslide GR Setup <版本> amd64.exe`（按用户安装，不需要管理员权限）。Homebrew 的 makensis 在没有 UTF-8 locale 时会崩溃（`std::bad_alloc`），所以要加 `LC_ALL`。
 
 开发时用 `go tool mygo dev`，程序文件直接取自仓库。用 `DARKSLIDE_PYTHON` 可以改用别的 Python。
+
+## 跟上游更新
+
+```sh
+python3 desktop/scripts/update_from_upstream.py --push fork
+```
+
+它会取上游最新的 `vX.Y.Z` tag，合并进当前分支，然后检查三件事：
+
+- 外壳依赖的启动接口还在：`PORT`、`--no-browser`、`POST /api/quit`。
+- 程序会读的仓库文件夹都在 `mygo.config.ts` 的 `resources` 里（`scripts/check_resources.py`）。
+- 外壳在 macOS 和 Windows 上都还能编译。
+
+都通过才推送。推送后 CI 在三个平台上跑自测、生成比对，并把安装程序留作运行产物（保留 30 天）。合并冲突时会停下并列出冲突文件，不会推送。
+
+上游新增耗时很长的接口时，要把它加进 `local.go` 的 `longRequests`。
 
 ## 平台
 
