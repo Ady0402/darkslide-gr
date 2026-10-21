@@ -1,0 +1,72 @@
+# Keep the desktop app (branch mygo-desktop-prototype) on the newest upstream release.
+#
+# Once a day, and on demand: merge the newest vX.Y.Z tag of LiorMoment/darkslide-gr
+# into mygo-desktop-prototype with desktop/scripts/update_from_upstream.py, which also
+# checks the launcher interface, the bundled resources and the build. When it merged
+# something (or when started by hand), the branch's own desktop workflow then tests
+# every platform and leaves the installers as artifacts of this run.
+#
+# It lives here because scheduled workflows run only from the default branch; the
+# branch's README and everything else stay as they are. A merge conflict fails this
+# run (GitHub e-mails the failure) and pushes nothing.
+name: upstream release
+
+on:
+  schedule:
+    - cron: "23 2 * * *"  # 10:23 Asia/Taipei
+  workflow_dispatch:
+
+concurrency:
+  group: upstream-release
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write  # push the merge to mygo-desktop-prototype
+    outputs:
+      sha: ${{ steps.merge.outputs.sha }}
+      merged: ${{ steps.merge.outputs.merged }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: mygo-desktop-prototype
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: desktop/go.mod
+          cache-dependency-path: desktop/go.sum
+      - uses: actions/setup-node@v4  # check_resources.py reads mygo.config.ts with Node 22.6+
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Merge the newest upstream release
+        id: merge
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/LiorMoment/darkslide-gr.git
+          before=$(git rev-parse HEAD)
+          python3 desktop/scripts/update_from_upstream.py --remote upstream
+          after=$(git rev-parse HEAD)
+          echo "sha=$after" >> "$GITHUB_OUTPUT"
+          if [ "$before" != "$after" ]; then
+            git push origin HEAD:mygo-desktop-prototype
+            echo "merged=true" >> "$GITHUB_OUTPUT"
+            echo "Merged $(git describe --tags --abbrev=0 "$after" 2>/dev/null) into mygo-desktop-prototype: $after" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "mygo-desktop-prototype already holds the newest upstream release." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  desktop:
+    needs: merge
+    if: needs.merge.outputs.merged == 'true' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: read
+    uses: Ady0402/darkslide-gr/.github/workflows/desktop.yml@mygo-desktop-prototype
+    with:
+      ref: ${{ needs.merge.outputs.sha }}
