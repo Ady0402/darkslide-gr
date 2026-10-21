@@ -1563,5 +1563,13 @@
 "胶片位置的调节检查数量不匹配": "The adjustment check count for the film slot does not match",
 "调节检查尾部结构不匹配": "The structure after an adjustment check does not match",
 "需要不重复的胶片位置": "Film slots must not repeat",
-"已按电脑语言预选，请确认和相机的菜单语言一致。": "Preselected from your computer's language. Please check it matches your camera's menu language."
+"已按电脑语言预选，请确认和相机的菜单语言一致。": "Preselected from your computer's language. Please check it matches your camera's menu language.",
+"这是 DARKSLIDE GR 生成的文件，请打开对应工程继续编辑": "This file was made by DARKSLIDE GR; open its project to keep editing",
+"这是改过的 %s %s 固件（比如 DARKSLIDE GR 之前生成的修改版），不是官方原件。请导入官方原件：可以点上面的「下载 %s %s」，把 %s 直接拖进来。": "This is a modified %s %s firmware (for example an earlier DARKSLIDE GR build), not the official original. Import the official original: click \"Download %s %s\" above and drag in %s as it is.",
+"GR IIIx 1.60 固件；标准版已有用户实机刷入使用，城市版、HDF 及刷回官方 1.60 未实机验证。": "GR IIIx 1.60 firmware; the standard GR IIIx has been flashed and used by a user, while the Urban and HDF editions and flashing back to the official 1.60 are not camera-tested.",
+"GR IIIx 城市版和 HDF": "The GR IIIx Urban and HDF editions",
+"GR IIIx 标准版已有用户实机刷入改过的 1.60 并正常使用；能不能再刷回官方 1.60 原件还没有在真机上验证过，城市版和 HDF 也还没有实测。": "A user has flashed a modified 1.60 onto a standard GR IIIx and uses it normally; flashing the official 1.60 back has not been tested on a camera, and the Urban and HDF editions are not tested yet.",
+"本次为 GR IIIx 1.60 固件，官方原件为 fwdc243b.bin；标准版已有用户实机刷入使用，城市版、HDF 和刷回官方 1.60 尚未实机验证。": "This is GR IIIx 1.60 firmware; the official original is fwdc243b.bin. The standard GR IIIx has been flashed and used by a user; the Urban and HDF editions and flashing back to the official 1.60 are not camera-tested yet.",
+"目前只做了离线核对：安装、开机、菜单、拍出来的颜色，以及刷回官方 1.60 救机，都还没在真机上验证过（标准版已有用户实机刷入使用）。": " have only been checked offline so far: installing, starting up, the menus, the colours of your photos and flashing the official 1.60 back to recover have not been tested on a camera (the standard GR IIIx has been flashed and used by a user).",
+"这款 GR IIIx 还没在真机上实测过": "This GR IIIx has not been tested on a camera"
 }

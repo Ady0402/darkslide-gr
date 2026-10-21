@@ -7,7 +7,10 @@ import os
 from pathlib import Path
 import struct
 import unittest
-from PIL import Image
+try:
+    from PIL import Image
+except ImportError:  # Pillow is only needed by these tests, not by the program
+    raise unittest.SkipTest("Pillow not installed")
 from darkslide import film_profiles as F, models, gr3x_recipe_merge as M
 from darkslide import photo_recipe as P, photo_recipe_extension as E, photo_recipe_jpeg as J
 try:

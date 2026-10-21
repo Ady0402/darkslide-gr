@@ -11,7 +11,7 @@ Give four presets on your GR III / GR IIIx a film look each, or **your own LUT**
 >
 > - Your camera may fail to boot, stop working properly, or be **permanently bricked**. You may also lose warranty and official support.
 > - The author has flashed and tested it on **one** GR III (firmware 2.10): icons and preset names for all 12 open presets (including names lengthened to the limit), the shutdown screen, Negative Film grain, several changes together, and flashing the official 2.10 original back afterwards, with no problems found. That is a sample of one camera, and your own icons, preset names and pictures have never been on real hardware; all pre-build checks run offline and are no substitute for testing on hardware.
-> - The 1.0 film writing was also tested once with four films on one regular GR III; the author found no problems, but the item-by-item record is not finished, and your film combination may never have been tested. The GR III HDF was tested on one camera by user @Ady0402 (generating, flashing, films, preset names and the Traditional Chinese menu all worked, and film presets are no longer over-exposed). The GR III Street and Diary editions and the whole GR IIIx series have **not been tested on real hardware**; you confirm the risk before generating.
+> - The 1.0 film writing was also tested once with four films on one regular GR III; the author found no problems, but the item-by-item record is not finished, and your film combination may never have been tested. The GR III HDF was tested on one camera by user @Ady0402 (generating, flashing, films, preset names and the Traditional Chinese menu all worked, and film presets are no longer over-exposed). The standard GR IIIx was flashed and used normally on one camera by a user. The GR III Street and Diary editions and the GR IIIx Urban and HDF editions have **not been tested on real hardware**; you confirm the risk before generating.
 > - This project is not affiliated with or endorsed by RICOH. The author accepts no liability for any damage.
 > - What DARKSLIDE GR produces is a firmware file, nothing more: it **does not talk to your camera or touch your memory card**. Flashing it, and how, is your call.
 >
@@ -37,7 +37,7 @@ Check it yourself: `shasum -a 256 fwdc239b.bin` (Windows: `certutil -hashfile fw
 Input: `fwdc243b.bin`, 30,391,788 bytes, SHA-256 `708e79f3b7b96a7e1581b4acf4c412233050a1832718ef7f06c8397db1b431c7`. The firmware is the same for the standard and HDF bodies, so pick the right model when you create a project.
 
 - **What works**: the 16 films, fitting your own LUTs and grades, camera-model previews, offline checks, and building complete firmware (in-place replacement, no growth).
-- **Not camera-tested**: every GR IIIx model is marked "adapted, not camera-tested", and each build asks you to confirm the risk. The hardware test results below apply only to the regular GR III 2.10.
+- **Tested so far**: the standard GR IIIx was flashed and used normally on one camera by a user and is marked "tested"; the Urban and HDF editions are still "adapted, not camera-tested", and each build for them asks you to confirm the risk. Flashing the official 1.60 back has not been tested on a camera. The other hardware test results below apply only to GR III 2.10.
 - **1.0 does not offer the photo-recipe module** (saving or reading film recipes in photos): it would append code and grow the firmware, so the option is hidden and the API refuses it.
 - **No developer tools needed**: building uses bundled, precompiled ARM code fragments, so Mac and Windows users need no Xcode, Command Line Tools or clang. Missing or damaged fragments stop the build; download the complete program again. Only developers rebuilding the fragments need LLVM clang with `armv7a-none-eabi`. Full firmware building has not been validated on a real Windows machine.
 - **Old IIIx projects**: the project list can import an old IIIx data folder: review the list, then copy it in; the old folder is kept, and old user LUTs need to be fitted again.
@@ -73,7 +73,7 @@ Give Bleach Bypass, Retro, HDR Tone and Cross Processing a film each; the camera
 - **See how far each slider can go**: with a built-in film, the camera-writable sliders show the range on the rail itself: the grey part fits, the red part is where that slider alone would no longer fit into the camera, and the number turns red once it does. Near the edge, whether a value fits is not always continuous, so the ranges are conservative: the limit and the 6 steps inside it were all checked with real fits. Several sliders together can still go over, so after you stop, the page checks the actual combination and says which part is out; while dragging, a rough estimate from where black and white end up is shown first, only as a hint.
 - **No growth**: written in place; the decoded program payload and its layout do not grow, although the compressed update file size can change.
 - **No developer tools needed**: the ARM fragments for writing films come precompiled and verified with the app; Mac and Windows users need no Xcode, Command Line Tools or clang.
-- **Tested so far**: the four-film writing was tested once on one regular GR III and the author reported no problems; the item-by-item record is still pending. The GR III HDF was tested on one camera by a user; the GR III Street and Diary editions and the whole GR IIIx series are "adapted, not camera-tested".
+- **Tested so far**: the four-film writing was tested once on one regular GR III and the author reported no problems; the item-by-item record is still pending. The GR III HDF and the standard GR IIIx were tested on one camera each by users; the GR III Street and Diary editions and the GR IIIx Urban and HDF editions are "adapted, not camera-tested".
 
 **Put your own LUT into the camera (new in 1.0)**
 
@@ -94,7 +94,7 @@ Good to know:
 - **An approximation, not a copy**: the match is a colour difference computed on a model of the camera, not a real photo. LUTs with extreme shadows, highlights or colours come out further off.
 - The first fit needs a one-time download of a 12–16 MB component (see "The 拟合 (fit) component" below). Without it nothing is checked automatically; 拟合 or 生成 asks before downloading.
 - Fit results are saved with the project, tied to that LUT and your camera's original, and reused next time.
-- GR IIIx only builds offline candidates, and every build asks you to confirm it is untested.
+- For the GR IIIx Urban and HDF editions every build asks you to confirm they are untested; the standard GR IIIx is tested and needs no confirmation.
 
 **Presets with a film share the Standard preset's in-camera adjustments**
 

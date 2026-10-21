@@ -13,7 +13,7 @@ from . import edit_core, generate, film_requests, film_profiles, film_writer, bo
 from . import gr3x_inplace, gr3x_inplace_integrity, gr3x_inplace_readback
 
 LAYOUT = 'gr3x160_inplace_candidate_v1'
-NOTE = 'GR IIIx 1.60 离线候选；安装、开机、真实拍摄、异步调度及原厂回刷未实机验证。'
+NOTE = 'GR IIIx 1.60 固件；标准版已有用户实机刷入使用，城市版、HDF 及刷回官方 1.60 未实机验证。'
 
 
 def sha(data):
