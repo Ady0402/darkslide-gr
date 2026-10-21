@@ -14,6 +14,13 @@ on:
   push:
     paths: ["desktop/**", "web/**", "darkslide/**", "launcher.py", ".github/workflows/desktop.yml"]
   workflow_dispatch:
+  # From upstream-release.yml on the fork's default branch, once it has merged a new
+  # upstream release: `ref` is the merge commit to test and package.
+  workflow_call:
+    inputs:
+      ref:
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -48,6 +55,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
@@ -139,6 +147,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
       - uses: actions/setup-python@v5
         with:
@@ -184,6 +193,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
       - uses: actions/setup-go@v5
         with:
@@ -227,6 +237,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           persist-credentials: false
       - uses: actions/download-artifact@v4
         with:
