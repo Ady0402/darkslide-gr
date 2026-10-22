@@ -31,6 +31,10 @@ LC_ALL=en_US.UTF-8 go tool mygo build -platform darwin/arm64,darwin/amd64,window
 
 开发时用 `go tool mygo dev`，程序文件直接取自仓库。用 `DARKSLIDE_PYTHON` 可以改用别的 Python。
 
+## 授权
+
+外壳（`desktop/` 下的程序）采用 MIT 许可。它是一个独立的程序，只通过本机 HTTP 和 DARKSLIDE GR 通信；DARKSLIDE GR 本体原样打包，仍是 GPL-2.0-only。外壳编译进去的 Go 模块（MyGo、purego、golang.org/x/…、Go 标准库）的许可全文，在 `DESKTOP_LICENSES.md` 里，这个文件也会放进 App。依赖有变化时，运行 `python3 desktop/scripts/licenses.py` 重新生成，CI 会检查它是不是最新的。
+
 ## 跟上游更新
 
 ```sh

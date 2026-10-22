@@ -67,6 +67,8 @@ jobs:
       - uses: actions/setup-node@v4  # the CLI evaluates mygo.config.ts with Node 22.6+
         with:
           node-version: "22"
+      - name: Licences match what is built in
+        run: python scripts/licenses.py --check
       - name: Bundled Python
         run: python scripts/fetch_python.py --platform ${{ matrix.dir }}
       - name: Selftest build
@@ -205,6 +207,8 @@ jobs:
       - uses: actions/setup-node@v4  # the CLI evaluates mygo.config.ts with Node 22.6+
         with:
           node-version: "22"
+      - name: Licences match what is built in
+        run: python scripts/licenses.py --check
       - name: Bundled Python
         run: python scripts/fetch_python.py --platform ${{ matrix.dir }}
       - name: Selftest build

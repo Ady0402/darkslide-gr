@@ -34,6 +34,7 @@ export default {
 
     "../LICENSE",
     "../THIRD_PARTY_NOTICES.md",
+    "DESKTOP_LICENSES.md", // the shell's MIT licence and those of what is built into it
   ],
   macos: {
     infoPlist: { CFBundleVersion: buildNumber() },
