@@ -2,6 +2,20 @@
 
 格式参照 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [1.3.2] - 2026-10-22
+
+感谢 [@Ady0402](https://github.com/Ady0402) 让图标和关机画面在每个浏览器里都生成相同的结果（[PR #4](https://github.com/LiorMoment/darkslide-gr/pull/4)）。
+
+### 改进
+
+- **同一个工程，在不同浏览器、不同电脑上生成的固件相同**：以前写进相机的图标和关机画面由浏览器缩放、由浏览器读取 JPEG，Chrome、Safari 甚至 Intel 和 Apple 芯片的 Mac 结果都略有不同，同一个工程生成的固件也就不一样。现在缩放和读取 JPEG 都由页面自己计算，结果在哪里都一样（[PR #4](https://github.com/LiorMoment/darkslide-gr/pull/4)）。重新生成以前的工程时，图标和关机画面会有肉眼几乎看不出的细微差别。「原厂风格」文字图标和没有图片的胶片名牌仍由浏览器画字，不在此列。
+- iPhone 拍的照片（Display P3）、Adobe RGB 等其他色彩空间的 JPEG，以及 PNG、WebP 图片，仍由浏览器先换算成标准色彩（sRGB），图标和关机画面的颜色和页面上看到的一致；这类图片在不同浏览器里的结果可能和以前一样略有不同。
+- 连续选两张图片时，以后选的那张为准；超过 6400 万像素的照片交给浏览器读取，避免占用过多内存。
+
+### 测试
+
+- 两个失效的界面测试修好了，全部界面测试也加进了自动测试（电脑上没有 Node 时跳过）；新增图片缩放、JPEG 读取和色彩判断的测试。
+
 ## [1.3.1] - 2026-10-20
 
 感谢 [@Ady0402](https://github.com/Ady0402) 修正配方卡的竖拍照片（[PR #3](https://github.com/LiorMoment/darkslide-gr/pull/3)）。

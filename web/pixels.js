@@ -3,15 +3,17 @@
 // made the same in every browser. A canvas resizes with the browser's own filter, which
 // differs between Chromium and WebKit and even between WebKit on Intel and Apple chips,
 // so the same picture made different firmware. Browsers decode JPEG differently too
-// (libjpeg-turbo in Chromium, ImageIO on macOS), so JPEGs are decoded by jpegdec.js;
-// other pictures by the browser, without colour management. The resize and the PNG
-// are plain arithmetic.
+// (libjpeg-turbo in Chromium, ImageIO on macOS), so sRGB JPEGs (and ones without a
+// colour profile) are decoded by jpegdec.js. Other pictures, and JPEGs in another colour
+// space (Display P3 from an iPhone, Adobe RGB...), are decoded by the browser, which turns
+// them into sRGB as the page shows them; their colours stay right, their bytes may differ
+// per browser as before. The resize and the PNG are plain arithmetic.
 (function () {
   // The picture's pixels at full size, RGBA, turned as its EXIF says, like the <img> the
   // page shows (`img`, whose size it must have: crop rectangles are in its pixels).
   async function decode(blob, img) {
     const bytes = new Uint8Array(await blob.arrayBuffer());
-    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && window.DarkslideJpegDecode) {
+    if (bytes[0] === 0xFF && bytes[1] === 0xD8 && window.DarkslideJpegDecode && srgbJpeg(bytes)) {
       let px = null;
       try {
         const out = window.DarkslideJpegDecode.decode(bytes);
@@ -19,7 +21,7 @@
       } catch (e) { /* a JPEG it does not read (CMYK, arithmetic coding...): the browser's */ }
       if (px && (!img || (px.w === img.naturalWidth && px.h === img.naturalHeight))) return px;
     }
-    const bmp = await createImageBitmap(blob, { colorSpaceConversion: "none", premultiplyAlpha: "none", imageOrientation: "from-image" });
+    const bmp = await createImageBitmap(blob, { colorSpaceConversion: "default", premultiplyAlpha: "none", imageOrientation: "from-image" });
     if (img && (bmp.width !== img.naturalWidth || bmp.height !== img.naturalHeight)) {
       bmp.close();
       throw new Error("图片打不开");
@@ -30,6 +32,45 @@
     g.drawImage(bmp, 0, 0);
     bmp.close();
     return { w: c.width, h: c.height, data: g.getImageData(0, 0, c.width, c.height).data };
+  }
+
+  // True when the JPEG has no colour profile, or an RGB profile with sRGB's primaries, or
+  // a grey one: then its numbers are already the sRGB the page shows. Any other profile
+  // (Display P3, Adobe RGB, a profile without primaries) needs the browser's conversion.
+  function srgbJpeg(b) {
+    const parts = [];
+    for (let i = 2; i + 4 <= b.length && b[i] === 0xFF;) {
+      const m = b[i + 1];
+      if (m === 0xD9 || m === 0xDA) break;                  // end of image / start of scan
+      if (m === 0x01 || (m >= 0xD0 && m <= 0xD7)) { i += 2; continue; }
+      const len = (b[i + 2] << 8) | b[i + 3];
+      if (len < 2) break;
+      if (m === 0xE2 && len >= 16 && String.fromCharCode(...b.subarray(i + 4, i + 16)) === "ICC_PROFILE\0") {
+        parts.push([b[i + 16], b.subarray(i + 18, i + 2 + len)]);
+      }
+      i += 2 + len;
+    }
+    if (!parts.length) return true;
+    parts.sort((x, y) => x[0] - y[0]);
+    const icc = new Uint8Array(parts.reduce((n, p) => n + p[1].length, 0));
+    let o = 0;
+    for (const p of parts) { icc.set(p[1], o); o += p[1].length; }
+    if (icc.length < 132) return false;
+    const u32 = (k) => ((icc[k] << 24) | (icc[k + 1] << 16) | (icc[k + 2] << 8) | icc[k + 3]) >>> 0;
+    const tag = (k) => String.fromCharCode(icc[k], icc[k + 1], icc[k + 2], icc[k + 3]);
+    const space = tag(16);
+    if (space === "GRAY") return true;
+    if (space !== "RGB ") return false;
+    const xyz = {};
+    for (let t = 0, n = u32(128); t < n && 132 + t * 12 + 12 <= icc.length; t++) {
+      const e = 132 + t * 12, sig = tag(e), at = u32(e + 4);
+      if ((sig === "rXYZ" || sig === "gXYZ" || sig === "bXYZ") && at + 20 <= icc.length && tag(at) === "XYZ ") {
+        xyz[sig] = [0, 1, 2].map((j) => (u32(at + 8 + j * 4) | 0) / 65536);
+      }
+    }
+    // sRGB's primaries adapted to D50, as every sRGB matrix profile writes them
+    const want = { rXYZ: [0.4361, 0.2225, 0.0139], gXYZ: [0.3851, 0.7169, 0.0971], bXYZ: [0.1431, 0.0606, 0.7141] };
+    return Object.keys(want).every((k) => xyz[k] && want[k].every((v, j) => Math.abs(xyz[k][j] - v) < 0.003));
   }
 
   // px turned upright for EXIF orientation o (1–8), as browsers show the picture.
@@ -134,5 +175,5 @@
     return out;
   }
 
-  window.DarkslidePixels = { decode, orient, resample, png };
+  window.DarkslidePixels = { decode, orient, resample, png, srgbJpeg };
 })();

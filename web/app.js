@@ -879,10 +879,14 @@ function cropRender() {
 }
 
 async function startCrop(file) {
+  // a picture chosen while the last one is still decoding wins; the last one is dropped
+  const turn = crop.turn = (crop.turn || 0) + 1;
   try {
-    crop.img = await loadImage(file);
-    crop.px = await window.DarkslidePixels.decode(file, crop.img);
-  } catch (e) { toast(e.message, true); return; }
+    const img = await loadImage(file);
+    const px = await window.DarkslidePixels.decode(file, img);
+    if (turn !== crop.turn) return;
+    crop.img = img; crop.px = px;
+  } catch (e) { if (turn === crop.turn) toast(e.message, true); return; }
   const c = $("cropCanvas");
   crop.base = Math.max(c.width / crop.img.naturalWidth, c.height / crop.img.naturalHeight);
   crop.scale = crop.base;
@@ -1461,10 +1465,14 @@ async function sdEncode() {
 }
 
 async function startShutdownCrop(file) {
+  // a picture chosen while the last one is still decoding wins; the last one is dropped
+  const turn = sd.turn = (sd.turn || 0) + 1;
   try {
-    sd.img = await loadImage(file);
-    sd.px = await window.DarkslidePixels.decode(file, sd.img);
-  } catch (e) { toast(e.message, true); return; }
+    const img = await loadImage(file);
+    const px = await window.DarkslidePixels.decode(file, img);
+    if (turn !== sd.turn) return;
+    sd.img = img; sd.px = px;
+  } catch (e) { if (turn === sd.turn) toast(e.message, true); return; }
   const c = $("sdCanvas");
   sd.base = Math.max(c.width / sd.img.naturalWidth, c.height / sd.img.naturalHeight);
   sd.scale = sd.base;

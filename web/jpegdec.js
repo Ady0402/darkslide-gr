@@ -23,7 +23,8 @@
   const F_0_298 = 2446, F_0_390 = 3196, F_0_541 = 4433, F_0_765 = 6270, F_0_899 = 7373;
   const F_1_175 = 9633, F_1_501 = 12299, F_1_847 = 15137, F_1_961 = 16069;
   const F_2_053 = 16819, F_2_562 = 20995, F_3_072 = 25172;
-  const MAX_PIXELS = 120 * 1000 * 1000;
+  // Larger pictures go to the browser: a 4:4:4 picture this size already needs ~1 GB here.
+  const MAX_PIXELS = 64 * 1000 * 1000;
 
   function fail(msg) { throw new Error("JPEG decode: " + msg); }
 
