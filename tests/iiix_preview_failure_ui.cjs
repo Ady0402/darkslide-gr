@@ -3,7 +3,7 @@ const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const cube='LUT_3D_SIZE 2\n0 0 0\n1 0 0\n0 1 0\n1 1 0\n0 0 1\n1 0 1\n0 1 1\n1 1 1\n';
 const rid='user_lut_photo_'+'a'.repeat(32),edit={film:rid},requests=[],messages=[],nodes={};
 let fail=true,blobs=0;
-const node=id=>nodes[id]||(nodes[id]={style:{},children:[],classList:{toggle(){}},replaceChildren(){},showModal(){this.open=true;},close(){this.open=false;}});
+const node=id=>nodes[id]||(nodes[id]={style:{setProperty(){}},children:[],classList:{toggle(){}},replaceChildren(){},showModal(){this.open=true;},close(){this.open=false;}});
 const ctx={Float32Array,URL:{createObjectURL:()=> 'blob:'+ ++blobs,revokeObjectURL(){}},
  ImageData:class{constructor(w,h){this.width=w;this.height=h;this.data=new Uint8ClampedArray(w*h*4);}},
  document:{getElementById:node,createElement:()=>({getContext:()=>({putImageData(){}}),toBlob:cb=>cb({})})},
@@ -28,6 +28,7 @@ const tick=()=>new Promise(r=>setImmediate(r));
  // Real app rendering must label the fallback source as original, never camera approximation.
  Object.assign(ctx,{$:node,state:{feature:'ic',sel:8,view:'camera',changes:{8:edit}},samples:{mine:true},focusedIndex:()=>0,refocus(){},el:()=>({}),slotOf:()=>({no:8,name:'slot'}),sceneBackground:()=> 'original',toast:m=>messages.push(m)});
  const app=fs.readFileSync('app/web/app.js','utf8');
+ vm.runInContext(app.slice(app.indexOf('function frameShape('),app.indexOf('function sceneBackground(')),ctx);  // photo aspect (since 1.2.0)
  vm.runInContext(app.slice(app.indexOf('const VIEW_NOTES ='),app.indexOf('// Factory defaults of')),ctx);
  node('zoomDialog').open=true;ctx.renderSamples();assert.equal(node('zoomDialog').open,false);assert.match(node('viewNote').textContent,/当前显示原图/);assert.equal(node('sampleAfterTag').textContent,'原图 · 相机预览不可用');
  ctx.openZoom();assert.notEqual(node('zoomDialog').open,true);

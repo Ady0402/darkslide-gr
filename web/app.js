@@ -474,24 +474,24 @@ async function syncFilmIcon(no, id) {
   if (!plate) { if (cur) setEdit(no, "icon", undefined); return; }   // no film, or the user's own LUT
   if (cur && cur.film === id) return;
   try {
-    let source = plate.source, small = plate.small, r = plate.crop;
+    let source = plate.source, small = plate.small, r = plate.crop, pixels = null;
     const url = F.iconUrl(id);
     if (url) {
-      const img = await new Promise((ok, bad) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => bad(new Error("图标读不出来")); i.src = url; });
+      const blob = await fetch(url).then((res) => { if (!res.ok) throw new Error("图标读不出来"); return res.blob(); });
+      const img = await loadImage(blob).catch(() => { throw new Error("图标读不出来"); });
+      const px = await window.DarkslidePixels.decode(blob, img);
       const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
       source = document.createElement("canvas");
       source.width = Math.round(img.naturalWidth * k); source.height = Math.round(img.naturalHeight * k);
       source.getContext("2d").drawImage(img, 0, 0, source.width, source.height);
-      // the largest centred area with the camera icon's visible shape (38×36)
+      // the largest centred area with the camera icon's visible shape (38×36), in source pixels
       const w = Math.min(source.width, source.height * VIS.w / VIS.h), h = w * VIS.h / VIS.w;
       r = { sx: (source.width - w) / 2, sy: (source.height - h) / 2, sw: w, sh: h };
       small = document.createElement("canvas");
       small.width = small.height = 40;
-      const keep = crop.img;
-      crop.img = source;
-      try { drawIcon(small, r); } finally { crop.img = keep; }
+      pixels = drawIcon(small, { sx: r.sx / k, sy: r.sy / k, sw: r.sw / k, sh: r.sh / k }, px);
     }
-    const up = [await uploadPng(source, "source"), await uploadPng(small, "icon")];
+    const up = [await uploadPng(source, "source"), await (pixels ? uploadIcon(pixels) : uploadPng(small, "icon"))];
     const now = state.changes[no] || {};
     if (now.film !== id || (now.icon && !now.icon.film)) return;  // changed again meanwhile
     setEdit(no, "icon", { asset: up[1].asset, source: up[0].asset, style: "image", crop: r, film: id });
@@ -833,7 +833,8 @@ function loadImage(file) {
   });
 }
 
-const crop = { img: null, scale: 1, base: 1, ox: 0, oy: 0, drag: null };
+// img is what the crop dialog shows; px the same picture's pixels for the icon itself.
+const crop = { img: null, px: null, icon: null, scale: 1, base: 1, ox: 0, oy: 0, drag: null };
 
 function cropClamp() {
   const c = $("cropCanvas");
@@ -847,20 +848,21 @@ function cropRect() {
   return { sx: -crop.ox / crop.scale, sy: -crop.oy / crop.scale, sw: c.width / crop.scale, sh: c.height / crop.scale };
 }
 
-function drawIcon(target, r) {
-  // stepped downscale for a cleaner 38×36 result
-  const mid = document.createElement("canvas");
-  mid.width = VIS.w * 4; mid.height = VIS.h * 4;
-  const m = mid.getContext("2d");
-  m.imageSmoothingQuality = "high";
-  m.drawImage(crop.img, r.sx, r.sy, r.sw, r.sh, 0, 0, mid.width, mid.height);
-  const t = target.getContext("2d");
-  t.clearRect(0, 0, 40, 40);
-  // the visible area must be fully opaque (factory contract: alpha 255 inside, 0 outside)
-  t.fillStyle = "#000000";
-  t.fillRect(VIS.x, VIS.y, VIS.w, VIS.h);
-  t.imageSmoothingQuality = "high";
-  t.drawImage(mid, 0, 0, mid.width, mid.height, VIS.x, VIS.y, VIS.w, VIS.h);
+// The 40×40 icon of the rectangle r of px (DarkslidePixels.decode), drawn into target;
+// returns its RGBA. Resized by DarkslidePixels, not the canvas, so every browser makes
+// the same icon. The visible area is fully opaque (factory contract: alpha 255 inside, 0 outside).
+function drawIcon(target, r, px) {
+  const inner = window.DarkslidePixels.resample(px, r, VIS.w, VIS.h);
+  const icon = new ImageData(40, 40);
+  for (let y = 0; y < VIS.h; y++) icon.data.set(inner.subarray(y * VIS.w * 4, (y + 1) * VIS.w * 4), ((VIS.y + y) * 40 + VIS.x) * 4);
+  target.getContext("2d").putImageData(icon, 0, 0);
+  return icon.data;
+}
+
+// An icon's pixels as the PNG the server keeps, the same bytes in every browser.
+function uploadIcon(rgba) {
+  return api("POST", "/api/projects/" + state.project.id + "/assets?kind=icon",
+    new Blob([window.DarkslidePixels.png(40, 40, rgba)], { type: "image/png" }));
 }
 
 function cropRender() {
@@ -869,7 +871,7 @@ function cropRender() {
   g.imageSmoothingQuality = "high";
   g.drawImage(crop.img, crop.ox, crop.oy, crop.img.naturalWidth * crop.scale, crop.img.naturalHeight * crop.scale);
   const p1 = $("cropPreview1");
-  drawIcon(p1, cropRect());
+  crop.icon = drawIcon(p1, cropRect(), crop.px);
   const p4 = $("cropPreview4").getContext("2d");
   p4.imageSmoothingEnabled = false;
   p4.clearRect(0, 0, 160, 160);
@@ -877,7 +879,14 @@ function cropRender() {
 }
 
 async function startCrop(file) {
-  try { crop.img = await loadImage(file); } catch (e) { toast(e.message, true); return; }
+  // a picture chosen while the last one is still decoding wins; the last one is dropped
+  const turn = crop.turn = (crop.turn || 0) + 1;
+  try {
+    const img = await loadImage(file);
+    const px = await window.DarkslidePixels.decode(file, img);
+    if (turn !== crop.turn) return;
+    crop.img = img; crop.px = px;
+  } catch (e) { if (turn === crop.turn) toast(e.message, true); return; }
   const c = $("cropCanvas");
   crop.base = Math.max(c.width / crop.img.naturalWidth, c.height / crop.img.naturalHeight);
   crop.scale = crop.base;
@@ -912,7 +921,7 @@ async function applyCrop() {
     src.height = Math.round(crop.img.naturalHeight * k);
     src.getContext("2d").drawImage(crop.img, 0, 0, src.width, src.height);
     const source = await uploadPng(src, "source");
-    const icon = await uploadPng($("cropPreview1"), "icon");
+    const icon = await uploadIcon(crop.icon);
     const r = cropRect();
     state.revealAsset = icon.asset;
     setEdit(s.no, "icon", {
@@ -1220,7 +1229,7 @@ function setGuideOpen(open) {
 const presetKeys = () => Object.keys(state.changes).filter((k) => k !== "shutdown");
 const SD = { w: 720, h: 480 };
 let sdView = "camera";
-const sd = { img: null, scale: 1, base: 1, ox: 0, oy: 0, drag: null, result: null, timer: null, seq: 0 };
+const sd = { img: null, px: null, scale: 1, base: 1, ox: 0, oy: 0, drag: null, result: null, timer: null, seq: 0 };
 
 function setShutdown(value) {
   mutate((c) => { if (value === undefined) delete c.shutdown; else c.shutdown = value; });
@@ -1425,24 +1434,13 @@ function sdRender() {
 }
 
 function sdPixels() {
-  // stepped downscale to 720×480 for a cleaner result
-  const r = sdRect();
-  let src = sd.img, sw = r.sw, sh = r.sh, sx = r.sx, sy = r.sy;
-  while (sw > SD.w * 2) {
-    const mid = document.createElement("canvas");
-    mid.width = Math.round(sw / 2); mid.height = Math.round(sh / 2);
-    const m = mid.getContext("2d");
-    m.imageSmoothingQuality = "high";
-    m.drawImage(src, sx, sy, sw, sh, 0, 0, mid.width, mid.height);
-    src = mid; sx = 0; sy = 0; sw = mid.width; sh = mid.height;
-  }
+  // 720×480 by DarkslidePixels, the same in every browser; transparent parts become
+  // black, like the camera screen
+  const data = window.DarkslidePixels.resample(sd.px, sdRect(), SD.w, SD.h);
   const out = document.createElement("canvas");
   out.width = SD.w; out.height = SD.h;
-  const g = out.getContext("2d");
-  g.fillStyle = "#000"; g.fillRect(0, 0, SD.w, SD.h);   // transparent PNGs become black, like the camera screen
-  g.imageSmoothingQuality = "high";
-  g.drawImage(src, sx, sy, sw, sh, 0, 0, SD.w, SD.h);
-  return { canvas: out, data: g.getImageData(0, 0, SD.w, SD.h).data };
+  out.getContext("2d").putImageData(new ImageData(data, SD.w, SD.h), 0, 0);
+  return { canvas: out, data };
 }
 
 async function sdEncode() {
@@ -1467,7 +1465,14 @@ async function sdEncode() {
 }
 
 async function startShutdownCrop(file) {
-  try { sd.img = await loadImage(file); } catch (e) { toast(e.message, true); return; }
+  // a picture chosen while the last one is still decoding wins; the last one is dropped
+  const turn = sd.turn = (sd.turn || 0) + 1;
+  try {
+    const img = await loadImage(file);
+    const px = await window.DarkslidePixels.decode(file, img);
+    if (turn !== sd.turn) return;
+    sd.img = img; sd.px = px;
+  } catch (e) { if (turn === sd.turn) toast(e.message, true); return; }
   const c = $("sdCanvas");
   sd.base = Math.max(c.width / sd.img.naturalWidth, c.height / sd.img.naturalHeight);
   sd.scale = sd.base;
