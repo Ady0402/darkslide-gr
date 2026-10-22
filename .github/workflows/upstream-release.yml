@@ -4,11 +4,12 @@
 # into mygo-desktop-prototype with desktop/scripts/update_from_upstream.py, which also
 # checks the launcher interface, the bundled resources and the build. When it merged
 # something (or when started by hand), the branch's own desktop workflow then tests
-# every platform and leaves the installers as artifacts of this run.
+# every platform; when a new release was merged and everything passed, the installers
+# are published as the pre-release desktop-v<version>.
 #
-# It lives here because scheduled workflows run only from the default branch; the
-# branch's README and everything else stay as they are. A merge conflict fails this
-# run (GitHub e-mails the failure) and pushes nothing.
+# It lives here because scheduled workflows run only from the default branch. A merge
+# conflict or a failed check fails this run (GitHub e-mails the failure), and then
+# nothing is pushed or published.
 name: upstream release
 
 on:
@@ -70,3 +71,42 @@ jobs:
     uses: Ady0402/darkslide-gr/.github/workflows/desktop.yml@mygo-desktop-prototype
     with:
       ref: ${{ needs.merge.outputs.sha }}
+
+  # Once every platform passed: publish desktop-v<version> as a pre-release with the three
+  # installers this run built, notes from .github/desktop-release-notes.md. A version that
+  # already has a release is left alone, so a manual run never replaces one.
+  release:
+    needs: [merge, desktop]
+    if: needs.merge.outputs.merged == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installer-*
+          merge-multiple: true
+          path: installers
+      - name: Publish the desktop release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.merge.outputs.sha }}
+        run: |
+          version=$(gh api "repos/$GITHUB_REPOSITORY/contents/darkslide/__init__.py?ref=$SHA" --jq .content \
+            | base64 -d | sed -n 's/^VERSION *= *"\([^"]*\)".*/\1/p')
+          [ -n "$version" ] || { echo "no VERSION at $SHA"; exit 1; }
+          tag="desktop-v$version"
+          if gh release view "$tag" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "$tag already released; nothing to do" | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          files=$(find installers -type f \( -name '*.dmg' -o -name '*Setup*.exe' \))
+          [ "$(echo "$files" | wc -l)" -eq 3 ] || { echo "expected 3 installers, got: $files"; exit 1; }
+          sed "s/{{VERSION}}/$version/g" .github/desktop-release-notes.md > notes.md
+          echo "$files" | tr '\n' '\0' | xargs -0 gh release create "$tag" -R "$GITHUB_REPOSITORY" \
+            --target "$SHA" --prerelease --title "DARKSLIDE GR 桌面版 $version（非官方測試版）" --notes-file notes.md
+          echo "Published $tag" >> "$GITHUB_STEP_SUMMARY"

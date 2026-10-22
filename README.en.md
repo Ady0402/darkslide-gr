@@ -2,6 +2,11 @@
 
 [简体中文](README.md) | English
 
+> [!IMPORTANT]
+> **This fork's changes are in the official release.** For the script version, use [LiorMoment/darkslide-gr Releases](https://github.com/LiorMoment/darkslide-gr/releases) and report problems there.
+>
+> **Not comfortable with a terminal?** [Download the DARKSLIDE GR desktop app](https://github.com/Ady0402/darkslide-gr/releases) (unofficial): double-click to run, no Python, for Mac (Apple silicon, Intel) and Windows 10/11. It is the official DARKSLIDE GR packaged unchanged, published with the [author's agreement](https://github.com/LiorMoment/darkslide-gr/pull/3), and follows each official release once it passes automated tests on all three platforms. The app is not signed by Apple or Microsoft, so the first launch needs your approval; the download page explains how. Source: [`desktop/` on the `mygo-desktop-prototype` branch](https://github.com/Ady0402/darkslide-gr/tree/mygo-desktop-prototype/desktop) (shell MIT, DARKSLIDE GR GPL-2.0). Flashing still carries the risks below.
+
 Give four presets on your GR III / GR IIIx a film look each, or **your own LUT**; add your own preset icons, preset names and shutdown screen, and turn on grain for Negative Film, right from a browser on your own computer.
 
 ![DARKSLIDE GR editor](docs/images/editor.png)

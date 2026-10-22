@@ -7,9 +7,20 @@
 >
 > 👉 **請到原作者的專案下載最新版：[LiorMoment/darkslide-gr Releases](https://github.com/LiorMoment/darkslide-gr/releases)**
 >
-> 這裡的 `v1.1.2-tw` **沒有**過曝修正：裝了底片的預設（例如銀流沖洗）會疊加原預設的詳細設定，造成過曝或暗角。請不要再使用。這個 fork 之後不會再更新。
+> 這裡的 `v1.1.2-tw` **沒有**過曝修正：裝了底片的預設（例如銀流沖洗）會疊加原預設的詳細設定，造成過曝或暗角。請不要再使用。這個 fork 的腳本版之後不會再更新。
 >
 > 問題回報請到[原作者的 Issues](https://github.com/LiorMoment/darkslide-gr/issues)。
+
+> [!TIP]
+> ### 不會用終端機？試試桌面版（非官方）
+>
+> **[下載 DARKSLIDE GR 桌面版](https://github.com/Ady0402/darkslide-gr/releases)**：雙擊就能用，不用安裝 Python、不用開終端機。支援 Mac（Apple 晶片、Intel）和 Windows 10／11。
+>
+> - 程式就是官方 DARKSLIDE GR，原封不動包成 App，經原作者[同意](https://github.com/LiorMoment/darkslide-gr/pull/3)後發布。官方發新版時，這裡會在三個平台自動測試通過後跟著更新。
+> - App 沒有 Apple／微軟的開發者簽章，第一次開啟要手動放行，下載頁有說明。
+> - 原始碼在 [`mygo-desktop-prototype` 分支的 `desktop/`](https://github.com/Ady0402/darkslide-gr/tree/mygo-desktop-prototype/desktop)（外殼為 MIT，DARKSLIDE GR 本體為 GPL-2.0）。
+> - 桌面版本身的問題請在[這裡回報](https://github.com/Ady0402/darkslide-gr/issues)，DARKSLIDE GR 功能的問題請到官方。
+> - 刷機一樣有讓相機變磚的風險，請先讀完下面的警告。
 
 ---
 
